@@ -10,13 +10,18 @@ import html
 import json
 from datetime import datetime
 from typing import Optional, List, Dict
-from dotenv import load_dotenv
 try:
     import streamlit as st
 except ImportError:
     st = None
 
-load_dotenv() # Load local .env if exists, but don't override system/cloud envs
+# Professional Practice: Don't load .env globally in a way that overrides Cloud Secrets
+if not st:
+    try:
+        from dotenv import load_dotenv
+        load_dotenv()
+    except ImportError:
+        pass
 
 
 def get_economic_events_for_date(target_date: datetime) -> List[Dict]:
@@ -237,14 +242,26 @@ def get_translated_market_news() -> str:
     final.sort(key=lambda x: x["hours_ago"])
     final = final[:10]
     
-    # --- Professional Translation (Streamlit Cloud Optimized) ---
-    api_key = os.getenv("GEMINI_API_KEY")
+    # --- Professional Translation (Strict Source Control) ---
+    api_key = None
+    source = "Not Found"
+    
     if st:
         try:
             if "GEMINI_API_KEY" in st.secrets:
                 api_key = st.secrets["GEMINI_API_KEY"]
+                source = "Streamlit Secrets"
         except Exception:
             pass
+            
+    if not api_key:
+        api_key = os.getenv("GEMINI_API_KEY")
+        if api_key:
+            source = "OS Environment (Possible .env conflict)"
+    
+    if api_key:
+        # Final clean
+        api_key = str(api_key).strip().replace('"', '').replace("'", "")
     
     titles = [n["title"] for n in final]
     service = TranslationService(api_key)
@@ -255,19 +272,18 @@ def get_translated_market_news() -> str:
     
     # Diagnostic Status (Safe Key Verification)
     if api_key:
-        clean_k = str(api_key).strip().replace('"', '').replace("'", "")
-        key_tag = f"`{clean_k[:5]}...{clean_k[-5:]}`"
+        key_tag = f"`{api_key[:5]}...{api_key[-5:]}`"
     else:
         key_tag = "`Missing`"
+        
     success_count = sum(1 for i, t in enumerate(translated) if t != titles[i])
     if success_count == 0 and api_key:
-        lines.append(f"> 🛠️ **Key Check**: {key_tag}")
+        lines.append(f"> 🛠️ **Key Check**: {key_tag} (Source: {source})")
         lines.append(f"> ❌ **번역 실패**: `{service.last_error if service.last_error else 'Unknown error'}`")
-        lines.append("> 💡 **해결**: Secrets에 따옴표(`\"` 또는 `'`)가 포함되어 있다면 제거해 주세요.")
     elif success_count < len(titles):
-        lines.append(f"> 🔄 **번역 상태**: {success_count}/{len(titles)} 항목 완료")
+        lines.append(f"> 🔄 **번역 상태**: {success_count}/{len(titles)} 항목 완료 (Source: {source})")
     else:
-        lines.append("> ✅ **뉴스 번역 완료**")
+        lines.append(f"> ✅ **뉴스 번역 완료** (Source: {source})")
     lines.append("")
 
     for i, item in enumerate(final):
