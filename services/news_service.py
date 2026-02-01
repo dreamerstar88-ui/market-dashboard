@@ -167,11 +167,19 @@ def get_translated_market_news() -> str:
     final = final[:10]
     
     lines = ["### 📰 시장 뉴스 (실시간)", ""]
+    
+    # --- Translation & Formatting ---
     api_key = os.getenv("GEMINI_API_KEY")
     titles = [n["title"] for n in final]
     translated = titles  
     
-    if api_key:
+    if not api_key:
+        lines.append("> ⚠️ **API Key Missing**: `GEMINI_API_KEY` 환경 변수가 설정되지 않았습니다. (Streamlit Cloud Secrets 확인)")
+    else:
+        # Key diagnosis (Safe: only first 4 chars)
+        key_prefix = api_key[:4] + "..." + api_key[-2:]
+        lines.append(f"> 🛠️ **DEBUG**: Key Prefix `{key_prefix}` 감지됨")
+        
         prompt = f"Translate financial headlines to Korean. Summarize. Return ONLY raw JSON list of strings. Input: {json.dumps(titles)}"
         # Strategy 1: SDK (google-genai)
         try:
@@ -199,7 +207,7 @@ def get_translated_market_news() -> str:
                     text = resp.json()["candidates"][0]["content"]["parts"][0]["text"]
                     result = parse_json_list(text)
                     if result: translated = result
-                else: raise Exception(f"REST 1.5 Code {resp.status_code}")
+                else: raise Exception(f"REST 1.5 Code {resp.status_code}: {resp.text[:100]}")
             except Exception as e_rest1:
                 # Strategy 3: REST API (gemini-pro)
                 try:
@@ -211,8 +219,9 @@ def get_translated_market_news() -> str:
                         if result: translated = result
                     else:
                         print(f"Translation Failure: {e_sdk}, {e_rest1}")
-                        lines.append(f"> ⚠️ 실시간 뉴스 번역 일시 중단 (API 지연) - 원문 표시")
-                except: pass
+                        lines.append(f"> ⚠️ **번역 실패**: 모든 방법 시도 후 실패함 (에러: {str(e_rest1)[:50]}...)")
+                except Exception as e_final:
+                    lines.append(f"> ⚠️ **최종 오류**: {str(e_final)}")
 
     # Formatter
     for i, (item, tr) in enumerate(zip(final, translated)):
