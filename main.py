@@ -285,10 +285,25 @@ with tabs[2]:
     
     cols = st.columns(4)
     icons = {"gold": "🥇", "oil": "⛽", "copper": "🔌", "natgas": "🔥"}
+    
+    # HTML Grid for Commodities
+    html_content = '<div class="mobile-grid-container">'
+    
     for i, (key, data) in enumerate(commodities.items()):
-        with cols[i]:
-            if not data.error:
-                st.metric(f"{icons.get(key)} {data.name}", f"${data.current_price:,.2f}", f"{data.change_percent:+.2f}%" if data.change_percent else None)
+        if not data.error:
+            change_color = "#00ff88" if (data.change_percent or 0) >= 0 else "#ff4444"
+            change_sign = "+" if (data.change_percent or 0) >= 0 else ""
+            change_txt = f"{change_sign}{data.change_percent:.2f}%" if data.change_percent else "-"
+            
+            html_content += f"""
+<div class="index-card">
+    <div class="index-name">{icons.get(key)} {data.name}</div>
+    <div class="index-price">${data.current_price:,.2f}</div>
+    <div style="color:{change_color};">{change_txt}</div>
+</div>
+"""
+    html_content += '</div>'
+    st.markdown(html_content, unsafe_allow_html=True)
     
     st.divider()
     cols = st.columns(2)
@@ -341,11 +356,21 @@ with tabs[3]:
         with st.spinner("로딩..."):
             yields = get_treasury_yields()
         
-        cols = st.columns(3)
+        # HTML Grid for Treasury Yields
+        html_content = '<div class="mobile-grid-container">'
+        
         for i, (sid, label) in enumerate(zip(["DGS2", "DGS10", "DGS30"], ["2년물", "10년물", "30년물"])):
             d = yields[sid]
             if not d.error:
-                cols[i].metric(label, f"{d.current_value:.2f}%")
+                html_content += f"""
+<div class="index-card">
+    <div class="index-name">{label}</div>
+    <div class="index-price">{d.current_value:.2f}%</div>
+    <div style="color:#888;">(국채)</div>
+</div>
+"""
+        html_content += '</div>'
+        st.markdown(html_content, unsafe_allow_html=True)
         
         fig = go.Figure()
         for sid, name, color in [("DGS2", "2Y", "#00CED1"), ("DGS10", "10Y", "#FFD700"), ("DGS30", "30Y", "#FF6347")]:
