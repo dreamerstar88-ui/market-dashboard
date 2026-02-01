@@ -67,7 +67,7 @@ def generate_market_insight(
 """
 
         response = client.models.generate_content(
-            model="gemini-2.0-flash-exp",
+            model="gemini-2.0-flash",
             contents=prompt,
             config=types.GenerateContentConfig(
                 max_output_tokens=100,

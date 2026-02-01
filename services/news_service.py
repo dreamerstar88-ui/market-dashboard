@@ -170,37 +170,37 @@ class TranslationService:
 
         # Models to try in order
         models = ["gemini-2.0-flash-exp", "gemini-1.5-pro", "gemini-1.5-flash"]
-        
         # Trial 1: SDK (The most robust way if library is present)
         if self.client:
-            for model_name in models:
-                try:
-                    from google.genai import types
-                    response = self.client.models.generate_content(
-                        model=model_name,
-                        contents=prompt,
-                        config=types.GenerateContentConfig(temperature=0.0)
+            try:
+                from google.genai import types
+                # Use the latest confirmed working model
+                model_name = "gemini-2.0-flash" 
+                response = self.client.models.generate_content(
+                    model=model_name,
+                    contents=prompt,
+                    config=types.GenerateContentConfig(
+                        temperature=0.1,
                     )
-                    if response.text:
-                        result = parse_json_list(response.text)
-                        if result:
-                            # Success! Ensure 1:1 mapping
-                            final_list = titles.copy()
-                            for i, r in enumerate(result[:count]): final_list[i] = r
-                            return final_list
-                except Exception as e:
-                    self.last_error = f"SDK {model_name} Error: {str(e)}"
-                    print(f"TranslationService: {model_name} failed. {e}")
-                    continue # Try next model
+                )
+                if response.text:
+                    result = parse_json_list(response.text)
+                    if result:
+                        final_list = titles.copy()
+                        for i, r in enumerate(result[:count]): final_list[i] = r
+                        return final_list
+            except Exception as e:
+                self.last_error = f"SDK Error: {str(e)}"
+                print(f"TranslationService: {model_name} failed. {e}")
         
         # Trial 2: REST Fallback (Direct request v1 & v1beta)
         try:
             headers = {'Content-Type': 'application/json'}
-            # Try combinations of versions and models to avoid 404s
+            # Try combinations based on confirmed 'Available Models' list
             trials = [
-                ("v1", "gemini-1.5-flash"),
+                ("v1beta", "gemini-2.0-flash"),
                 ("v1beta", "gemini-1.5-flash"),
-                ("v1", "gemini-pro"),
+                ("v1", "gemini-1.5-flash"),
             ]
             
             for ver, m_id in trials:
