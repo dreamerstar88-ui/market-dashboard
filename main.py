@@ -29,7 +29,7 @@ from config.settings import APP_TITLE, APP_ICON
 # ============================================================
 # Page Config
 # ============================================================
-st.set_page_config(page_title=APP_TITLE, page_icon=APP_ICON, layout="wide", initial_sidebar_state="collapsed")
+st.set_page_config(page_title=APP_TITLE, page_icon=APP_ICON, layout="wide", initial_sidebar_state="expanded")
 st.caption("🚀 v17.2 Mobile Patch Updated")
 
 st.markdown("""
@@ -135,7 +135,7 @@ with st.sidebar:
 # ============================================================
 # Main Tabs
 # ============================================================
-tabs = st.tabs(["🇺🇸 미국주식", "🇰🇷 한국주식", "💱 환율/원자재", "🌍 거시경제", "₿ 크립토", "📰 시장정보"])
+tabs = st.tabs(["🇺🇸 미국주식", "🇰🇷 한국주식", "💱 환율/원자재", "🌍 거시경제", "₿ 크립토", "📰 시장정보", "⚙️ 설정"])
 
 # --- Tab 1: US Stocks ---
 with tabs[0]:
@@ -427,32 +427,44 @@ with tabs[4]:
     crypto_sym = st.text_input("🔍 코인 검색", value="BINANCE:BTCUSDT", key="crypto_search").upper()
     TradingViewWidget.render_advanced_chart(crypto_sym, height=400, locale="kr")
 
-# --- Tab 6: Market Intel ---
+# --- Tab 6: Market Intel (News & Calendar) ---
 with tabs[5]:
-    st.subheader("📅 경제 캘린더")
+    IntelTab1, IntelTab2 = st.tabs(["📰 시장 뉴스", "📅 경제 캘린더"])
     
-    selected_date = st.date_input("📆 날짜 선택", value=datetime.now(), key="calendar_date")
-    selected_datetime = datetime.combine(selected_date, datetime.min.time())
-    
-    st.markdown(get_translated_economic_events(selected_datetime))
-    
-    st.divider()
-    st.subheader("📰 시장 뉴스")
-    st.caption("📌 중요도: 거시경제 > 지수 > 개별주식 순으로 정렬")
-    
-    use_gemini = st.checkbox("🔄 Gemini 한국어 번역", value=True)
-    
-    # API Key Debug Check
-    if not os.getenv("GEMINI_API_KEY"):
-         st.error("⚠️ Gemini API Key가 설정되지 않았습니다. .env 파일을 확인하거나 클라우드 Secrets를 설정해주세요.")
-         
-    if use_gemini:
+    with IntelTab1:
+        st.caption("📌 중요도: 거시경제 > 지수 > 개별주식 순으로 정렬")
+        
+        # Check for Manual Key Override
+        use_manual = st.session_state.get("manual_gemini_key", "")
+        if not os.getenv("GEMINI_API_KEY") and not use_manual:
+             st.warning("⚠️ '설정' 탭에서 Gemini API 키를 입력하면 한국어 번역이 활성화됩니다.")
+        
         with st.spinner("뉴스 수집 및 번역 중..."):
             st.markdown(get_translated_market_news())
-    else:
-        TradingViewWidget.render_timeline(height=350, locale="kr")
+            
+        st.markdown("---")
+        c1, c2 = st.columns(2)
+        c1.link_button("📊 SaveTicker", "https://www.saveticker.com/app/news")
+        c2.link_button("🇰🇷 Investing.com", "https://kr.investing.com/economic-calendar/")
+
+    with IntelTab2:
+        selected_date = st.date_input("📆 날짜 선택", value=datetime.now(), key="calendar_date_main")
+        selected_datetime = datetime.combine(selected_date, datetime.min.time())
+        st.markdown(get_translated_economic_events(selected_datetime))
+
+# --- Tab 7: Settings (Bypass) ---
+with tabs[6]:
+    st.header("⚙️ 서비스 설정")
+    st.info("클라우드 서버(Secrets)에서 API 키를 인식하지 못할 경우, 아래에 직접 입력해 주세요. (브라우저를 끄기 전까지 유지됩니다.)")
     
-    st.markdown("---")
-    c1, c2 = st.columns(2)
-    c1.link_button("📊 SaveTicker", "https://www.saveticker.com/app/news")
-    c2.link_button("🇰🇷 Investing.com", "https://kr.investing.com/economic-calendar/")
+    manual_key = st.text_input(
+        "제미나이(Gemini) API 키 입력", 
+        value=st.session_state.get("manual_gemini_key", ""), 
+        type="password",
+        help="LArP_g로 끝나는 새 키를 입력하세요."
+    )
+    if manual_key:
+        st.session_state["manual_gemini_key"] = manual_key.strip()
+        st.success("✅ 수동 키가 적용되었습니다! '시장정보' 탭에서 번역 결과를 확인하세요.")
+        if st.button("지금 바로 새로고침"):
+            st.rerun()
