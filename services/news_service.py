@@ -174,8 +174,12 @@ def get_translated_market_news() -> str:
     translated = titles  
     
     if api_key:
-        # Simplified prompt and removed strict responseMimeType to avoid 400 errors
-        prompt = f"Translate these financial headlines to Korean. Summarize slightly. Return ONLY as a JSON list of strings. Input: {json.dumps(titles)}"
+        # Prompt refined for 1:1 mapping and no combination
+        prompt = f"""
+        Translate each of the following financial headlines into Korean individually.
+        Keep them concise and return ONLY a JSON list of exactly {len(titles)} strings in the same order.
+        Input: {json.dumps(titles)}
+        """
         
         # Strategy 1: SDK (google-genai)
         try:
@@ -187,7 +191,7 @@ def get_translated_market_news() -> str:
             )
             if response.text:
                 result = parse_json_list(response.text)
-                if result: translated = result
+                if result and len(result) > 0: translated = result
         except Exception as e_sdk:
             # Strategy 2: REST API (gemini-1.5-flash)
             try:
@@ -197,7 +201,7 @@ def get_translated_market_news() -> str:
                 if resp.status_code == 200:
                     text = resp.json()["candidates"][0]["content"]["parts"][0]["text"]
                     result = parse_json_list(text)
-                    if result: translated = result
+                    if result and len(result) > 0: translated = result
                 else: raise Exception(f"REST 1.5 Code {resp.status_code}")
             except Exception as e_rest1:
                 # Strategy 3: REST API (gemini-pro)
@@ -207,17 +211,14 @@ def get_translated_market_news() -> str:
                     if resp.status_code == 200:
                         text = resp.json()["candidates"][0]["content"]["parts"][0]["text"]
                         result = parse_json_list(text)
-                        if result: translated = result
-                    else:
-                        print(f"Translation failure final fallback: {resp.status_code}")
+                        if result and len(result) > 0: translated = result
                 except: pass
 
-    # Remove debug info for cleaner UI
-    # lines.append(f"> 🛠️ **DEBUG**: Key Prefix 감지됨")
-
-    # Formatter
-    for i, (item, tr) in enumerate(zip(final, translated)):
-        t = tr if tr else item["title"]
+    # Range-based loop to ensure all news are shown even if translation count differs
+    for i, item in enumerate(final):
+        # Use translated text if index exists, else fallback to original title
+        t = translated[i] if i < len(translated) else item["title"]
+        
         # Add a "🔥" badge for breaking news (top 2 news if really fresh, e.g. < 2 hours)
         badge = "🔥" if i < 2 and item["hours_ago"] < 3 else "📢"
         
