@@ -122,6 +122,73 @@ def parse_json_list(text: str) -> List[str]:
         return []
 
 
+class TranslationService:
+    """Gemini API를 이용한 전문 번역 서비스 (Python-Pro patterns)"""
+    
+    def __init__(self, api_key: Optional[str]):
+        self.api_key = api_key
+        self.client = None
+        if api_key:
+            try:
+                from google import genai
+                self.client = genai.Client(api_key=api_key)
+            except ImportError:
+                print("TranslationService: google-genai library not found.")
+
+    def translate_headlines(self, titles: List[str]) -> List[str]:
+        """기사를 유동적으로 번역하여 리스트로 반환"""
+        if not self.api_key:
+            return titles
+            
+        count = len(titles)
+        # Personas and examples increase mapping reliability
+        prompt = f"""You are a professional financial news translator.
+Translate the following {count} news headlines into Korean individually.
+Guidelines:
+1. One translation per line.
+2. Maintain the original meaning and tone.
+3. Return ONLY a JSON list of {count} strings.
+
+Input: {json.dumps(titles, ensure_ascii=False)}"""
+
+        # Trial 1: SDK (Latest Model)
+        if self.client:
+            try:
+                from google.genai import types
+                response = self.client.models.generate_content(
+                    model="gemini-2.0-flash-exp",
+                    contents=prompt,
+                    config=types.GenerateContentConfig(
+                        temperature=0.1, # Low temperature for consistency
+                    )
+                )
+                if response.text:
+                    result = parse_json_list(response.text)
+                    if result:
+                        final_list = titles.copy()
+                        for i, r in enumerate(result[:count]): final_list[i] = r
+                        return final_list
+            except Exception as e:
+                print(f"TranslationService (SDK) Error: {e}")
+
+        # Trial 2: REST Fallback (Direct request)
+        try:
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={self.api_key}"
+            payload = {"contents": [{"parts": [{"text": prompt}]}]}
+            resp = requests.post(url, json=payload, timeout=10)
+            if resp.status_code == 200:
+                text = resp.json()["candidates"][0]["content"]["parts"][0]["text"]
+                result = parse_json_list(text)
+                if result:
+                    final_list = titles.copy()
+                    for i, r in enumerate(result[:count]): final_list[i] = r
+                    return final_list
+        except Exception as e:
+            print(f"TranslationService (REST) Error: {e}")
+
+        return titles
+
+
 def get_translated_market_news() -> str:
     """뉴스 쿼터 (속보2, 거시2, 지수3, 종목3)"""
     sources = [
@@ -140,21 +207,18 @@ def get_translated_market_news() -> str:
                 all_items.append(item)
     
     all_items.sort(key=lambda x: x["hours_ago"])
-    final = []
     
+    # Select logic
     breaking_quota = 2
     breaking = all_items[:breaking_quota]
-    final.extend(breaking)
     pool = all_items[breaking_quota:]
-    
     buckets = {1: [], 2: [], 3: []}
     for item in pool: buckets[item["priority"]].append(item)
-    
     quotas = {1: 2, 2: 3, 3: 3}
+    final = breaking
     for cat in [1, 2, 3]:
         count = quotas[cat]
-        selected = buckets[cat][:count]
-        final.extend(selected)
+        final.extend(buckets[cat][:count])
         buckets[cat] = buckets[cat][count:]
     
     if len(final) < 10:
@@ -166,74 +230,38 @@ def get_translated_market_news() -> str:
     final.sort(key=lambda x: x["hours_ago"])
     final = final[:10]
     
-    lines = ["### 📰 시장 뉴스 (실시간)", ""]
-    
-    # --- Translation & Formatting ---
+    # Professional Translation
     api_key = os.getenv("GEMINI_API_KEY")
     titles = [n["title"] for n in final]
-    translated = titles  
     
-    if api_key:
-        # Prompt: Strict Financial Translator persona
-        prompt = f"""
-        You are a financial news translator. 
-        Translate the following headlines to Korean individually.
-        - DO NOT combine items.
-        - Return EXACTLY {len(titles)} translated titles in a JSON list.
-        - Each item in the list must correspond to the input title index.
-        Input JSON: {json.dumps(titles)}
-        """
-        
-        # Strategy 1: SDK (google-genai)
-        try:
-            from google import genai
-            client = genai.Client(api_key=api_key)
-            response = client.models.generate_content(
-                model="gemini-2.0-flash-exp",
-                contents=prompt
-            )
-            if response.text:
-                result = parse_json_list(response.text)
-                if result and len(result) > 0:
-                    # Partial mapping to avoid losing data if length differs
-                    for idx, val in enumerate(result):
-                        if idx < len(translated): translated[idx] = val
-        except Exception:
-            # Strategy 2: REST API (gemini-1.5-flash)
-            try:
-                url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
-                payload = {"contents": [{"parts": [{"text": prompt}]}]}
-                resp = requests.post(url, json=payload, timeout=10)
-                if resp.status_code == 200:
-                    text = resp.json()["candidates"][0]["content"]["parts"][0]["text"]
-                    result = parse_json_list(text)
-                    if result and len(result) > 0:
-                        for idx, val in enumerate(result):
-                            if idx < len(translated): translated[idx] = val
-            except:
-                pass
-
-    # Status indicator
+    service = TranslationService(api_key)
+    translated = service.translate_headlines(titles)
+    
+    # Formatter
+    lines = ["### 📰 시장 뉴스 (실시간)", ""]
+    
+    # Diagnostic Status
     success_count = sum(1 for i, t in enumerate(translated) if t != titles[i])
-    if success_count < len(titles):
-        lines.append(f"> 🔄 **번역 상태**: {success_count}/{len(titles)} 항목 번역됨 (나머지 원문 유지)")
+    if success_count == 0 and api_key:
+        lines.append("> ⏳ **번역 대기 중**: 데이터 수신 후 번역이 준비됩니다.")
+    elif success_count < len(titles):
+        lines.append(f"> 🔄 **번역 상태**: {success_count}/{len(titles)} 항목 완료")
     else:
-        lines.append("> ✅ **실시간 번역 완료**")
+        lines.append("> ✅ **뉴스 번역 완료**")
     lines.append("")
 
-    # Formatter
     for i, item in enumerate(final):
-        t = translated[i] # Safe because initialized with titles
-        
-        # Add a "🔥" badge for breaking news (top 2 news if really fresh, e.g. < 2 hours)
+        t = translated[i]
         badge = "🔥" if i < 2 and item["hours_ago"] < 3 else "📢"
-        
-        line_1 = f"**{badge} [{item['time']}] {item['source']}** [🔗]({item['link']})"
-        line_2 = f"&nbsp;&nbsp;&nbsp;&nbsp;{t}"
-        lines.append(f"{line_1}  \n{line_2}")
-        lines.append("")
+        lines.append(f"**{badge} [{item['time']}] {item['source']}** [🔗]({item['link']})  \n&nbsp;&nbsp;&nbsp;&nbsp;{t}\n")
         
     return "\n".join(lines)
+
+
+def get_translated_economic_events(target_date: Optional[datetime] = None) -> str:
+    if target_date is None: target_date = datetime.now()
+    return format_economic_calendar(target_date)
+
 
 
 def get_translated_economic_events(target_date: Optional[datetime] = None) -> str:
