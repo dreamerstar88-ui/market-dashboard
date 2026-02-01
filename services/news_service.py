@@ -242,22 +242,39 @@ def get_translated_market_news() -> str:
     final.sort(key=lambda x: x["hours_ago"])
     final = final[:10]
     
-    # --- Professional Translation (Strict Source Control) ---
+    # --- Professional Translation (Brute-Force Source Control) ---
     api_key = None
     source = "Not Found"
+    detected_keys = []
     
     if st:
         try:
-            if "GEMINI_API_KEY" in st.secrets:
-                api_key = st.secrets["GEMINI_API_KEY"]
-                source = "Streamlit Secrets"
+            # Diagnostic: See what's actually in Secrets
+            detected_keys = list(st.secrets.keys())
+            
+            # Brute-force naming check
+            possible_names = ["GEMINI_API_KEY", "gemini_api_key", "GEMINI_KEY", "Gemini_API"]
+            for name in possible_names:
+                if name in st.secrets:
+                    val = st.secrets[name]
+                    if val and val != "None":
+                        api_key = val
+                        source = f"Streamlit Secrets ({name})"
+                        break
         except Exception:
             pass
             
     if not api_key:
-        api_key = os.getenv("GEMINI_API_KEY")
-        if api_key:
-            source = "OS Environment (Possible .env conflict)"
+        # Fallback to OS environment
+        env_key = os.getenv("GEMINI_API_KEY")
+        if env_key:
+            # Detect poisoned key (old one)
+            if env_key.endswith("nRjSY"):
+                source = "OS Environment (POISONED - OLD KEY DETECTED)"
+                api_key = None # Ignore the poisoned key
+            else:
+                api_key = env_key
+                source = "OS Environment (.env or System)"
     
     if api_key:
         # Final clean
@@ -274,12 +291,17 @@ def get_translated_market_news() -> str:
     if api_key:
         key_tag = f"`{api_key[:5]}...{api_key[-5:]}`"
     else:
-        key_tag = "`Missing`"
+        key_tag = "`Missing / Blocked`"
         
     success_count = sum(1 for i, t in enumerate(translated) if t != titles[i])
-    if success_count == 0 and api_key:
-        lines.append(f"> 🛠️ **Key Check**: {key_tag} (Source: {source})")
-        lines.append(f"> ❌ **번역 실패**: `{service.last_error if service.last_error else 'Unknown error'}`")
+    if success_count == 0:
+        lines.append(f"> 🧪 **Diagnostic**: {source}")
+        lines.append(f"> 📂 **Secrets Keys Found**: `{detected_keys if detected_keys else 'None'}`")
+        if api_key:
+            lines.append(f"> 🛠️ **Key Check**: {key_tag}")
+            lines.append(f"> ❌ **번역 실패**: `{service.last_error if service.last_error else 'Unknown error'}`")
+        else:
+            lines.append("> 🚨 **알림**: 유효한 API 키가 없습니다. 위 'Secrets Keys Found'에 `GEMINI_API_KEY`가 있는지 확인해 주세요.")
     elif success_count < len(titles):
         lines.append(f"> 🔄 **번역 상태**: {success_count}/{len(titles)} 항목 완료 (Source: {source})")
     else:
