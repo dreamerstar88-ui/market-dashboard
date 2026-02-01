@@ -41,25 +41,33 @@ st.markdown("""
         button[data-baseweb="tab"] {font-size: 0.8rem !important; padding: 0.4rem !important;}
         .stMetric {background: rgba(30,30,30,0.5); border-radius: 8px; padding: 0.5rem;}
         
-        /* Mobile Grid Layout System */
-        .mobile-grid-container {
+        /* Fluid Grid Layout System (Smart Responsive) */
+        .fluid-grid-container {
             display: flex;
             flex-wrap: wrap;
-            gap: 10px;
+            gap: 12px;
             justify-content: space-between;
             width: 100%;
         }
         .index-card {
             background: linear-gradient(135deg, #1a1a2e, #16213e);
-            border-radius: 10px;
-            padding: 12px;
+            border-radius: 12px;
+            padding: 14px;
             text-align: center;
-            flex: 1 1 45%; /* 2 items per row on mobile (45% width) */
-            min-width: 140px;
-            margin-bottom: 5px;
+            /* Flex Magic: Grow=1, Shrink=1, Basis=150px (Minimum readable width) */
+            flex: 1 1 150px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            transition: transform 0.2s;
         }
-        .index-name {font-size: 12px; color: #888;}
-        .index-price {font-size: 18px; font-weight: bold; color: #fff;}
+        .index-card:hover {
+            transform: translateY(-2px);
+        }
+        .index-name {font-size: 12px; color: #aaa; margin-bottom: 4px;}
+        .index-price {
+            font-size: clamp(16px, 4vw, 20px); /* Smart scaling font */
+            font-weight: bold; 
+            color: #fff;
+        }
         .index-change-up {font-size: 14px; color: #00ff88;}
         .index-change-down {font-size: 14px; color: #ff4444;}
     </style>
@@ -125,7 +133,7 @@ with tabs[0]:
     icons = ["📈", "📊", "📉"]
     
     # HTML Grid for Responsive Layout (Force 2 columns on mobile)
-    html_content = '<div class="mobile-grid-container">'
+    html_content = '<div class="fluid-grid-container">'
     
     for i, idx in enumerate(us_indices):
         if not idx.error:
@@ -185,7 +193,7 @@ with tabs[1]:
         kr_indices = get_kr_indices()
     
     # HTML Grid for Responsive Layout (Force 2 columns on mobile)
-    html_content = '<div class="mobile-grid-container">'
+    html_content = '<div class="fluid-grid-container">'
     
     for i, idx in enumerate(kr_indices):
         if not idx.error:
@@ -287,7 +295,7 @@ with tabs[2]:
     icons = {"gold": "🥇", "oil": "⛽", "copper": "🔌", "natgas": "🔥"}
     
     # HTML Grid for Commodities
-    html_content = '<div class="mobile-grid-container">'
+    html_content = '<div class="fluid-grid-container">'
     
     for i, (key, data) in enumerate(commodities.items()):
         if not data.error:
@@ -357,7 +365,7 @@ with tabs[3]:
             yields = get_treasury_yields()
         
         # HTML Grid for Treasury Yields
-        html_content = '<div class="mobile-grid-container">'
+        html_content = '<div class="fluid-grid-container">'
         
         for i, (sid, label) in enumerate(zip(["DGS2", "DGS10", "DGS30"], ["2년물", "10년물", "30년물"])):
             d = yields[sid]
