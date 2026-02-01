@@ -11,6 +11,7 @@ class TradingViewWidget:
     @staticmethod
     def render_ticker_tape(locale: str = "kr") -> None:
         """상단 시세표"""
+        html_code = f"""
         <div class="tradingview-widget-container">
           <div class="tradingview-widget-container__widget"></div>
           <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-ticker-tape.js" async>
