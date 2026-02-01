@@ -29,6 +29,7 @@ from config.settings import APP_TITLE, APP_ICON
 # Page Config
 # ============================================================
 st.set_page_config(page_title=APP_TITLE, page_icon=APP_ICON, layout="wide", initial_sidebar_state="collapsed")
+st.caption("🚀 v17.2 Mobile Patch Updated")
 
 st.markdown("""
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
