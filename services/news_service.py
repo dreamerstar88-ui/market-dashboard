@@ -101,6 +101,27 @@ def fetch_rss_news(feed_url: str, source_name: str) -> List[Dict]:
     except: return []
 
 
+def parse_json_list(text: str) -> List[str]:
+    """AI가 반환한 텍스트에서 JSON 리스트만 추출하는 유틸리티"""
+    if not text: return []
+    try:
+        # 1. ```json ... ``` 블록 제거 시도
+        clean_text = text.strip()
+        if clean_text.startswith("```"):
+            clean_text = re.sub(r'^```[a-z]*\s*', '', clean_text)
+            clean_text = re.sub(r'\s*```$', '', clean_text)
+        
+        # 2. JSON 파싱
+        return json.loads(clean_text)
+    except:
+        # 3. 정규브로 리스트 형태만 추출 시도 (마지막 수단)
+        match = re.search(r'\[.*\]', text, re.DOTALL)
+        if match:
+            try: return json.loads(match.group())
+            except: pass
+        return []
+
+
 def get_translated_market_news() -> str:
     """뉴스 쿼터 (속보2, 거시2, 지수3, 종목3)"""
     sources = [
@@ -118,88 +139,80 @@ def get_translated_market_news() -> str:
                 seen.add(item["title"])
                 all_items.append(item)
     
-    # Sort EVERYTHING by time first to find true "Breaking" news
     all_items.sort(key=lambda x: x["hours_ago"])
-    
     final = []
     
-    # 1. 속보 (Breaking): 2 개
-    # 무조건 가장 최신 2개를 가져옴 (카테고리 무관)
     breaking_quota = 2
     breaking = all_items[:breaking_quota]
     final.extend(breaking)
-    
-    # Remove selected items from pool
     pool = all_items[breaking_quota:]
     
-    # 2. Bucketize Remaining
     buckets = {1: [], 2: [], 3: []}
     for item in pool: buckets[item["priority"]].append(item)
     
-    # 3. Quota Selection (Macro 2, Index 3, Stock 3)
     quotas = {1: 2, 2: 3, 3: 3}
-    
     for cat in [1, 2, 3]:
         count = quotas[cat]
         selected = buckets[cat][:count]
         final.extend(selected)
-        # 만약 쿼터를 못 채웠으면 나중에 채우기 위해 남은거 기록할 필요 없음 (자동으로 아래 로직에서 해결)
         buckets[cat] = buckets[cat][count:]
     
-    # 4. Fill Deficit (If total < 10, fill with remaining newest items from any category)
     if len(final) < 10:
         rem = []
         for cat in [1, 2, 3]: rem.extend(buckets[cat])
         rem.sort(key=lambda x: x["hours_ago"])
         final.extend(rem[:10 - len(final)])
     
-    # 5. Final Sort (Latest first) and Trim
     final.sort(key=lambda x: x["hours_ago"])
     final = final[:10]
     
-    # Formatter Initialization (moved up for error handling)
     lines = ["### 📰 시장 뉴스 (실시간)", ""]
-    
-    # --- Translation & Formatting ---
     api_key = os.getenv("GEMINI_API_KEY")
     titles = [n["title"] for n in final]
-    translated = titles  # Default (fallback if translation fails)
+    translated = titles  
     
     if api_key:
-        # Strategy 1: Try SDK (google-genai) with Gemini 2.0 Flash (Best quality)
+        prompt = f"Translate financial headlines to Korean. Summarize. Return ONLY raw JSON list of strings. Input: {json.dumps(titles)}"
+        # Strategy 1: SDK (google-genai)
         try:
             from google import genai
             from google.genai import types
             client = genai.Client(api_key=api_key)
             response = client.models.generate_content(
                 model="gemini-2.0-flash-exp",
-                contents=f"""Translate to Korean, summarize. Return JSON list strings. Input: {json.dumps(titles)}""",
+                contents=prompt,
                 config=types.GenerateContentConfig(response_mime_type="application/json")
             )
             if response.text:
-                translated = json.loads(response.text)
+                result = parse_json_list(response.text)
+                if result: translated = result
         except Exception as e_sdk:
-            # Strategy 2: Fallback to REST API (gemini-1.5-flash) - Stable/Widely available
+            # Strategy 2: REST API (gemini-1.5-flash)
             try:
                 url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
-                prompt = f"""Translate to Korean, summarize. Return JSON list strings. Input: {json.dumps(titles)}"""
-                resp = requests.post(url, json={"contents": [{"parts": [{"text": prompt}]}]}, timeout=10)
+                payload = {
+                    "contents": [{"parts": [{"text": prompt}]}],
+                    "generationConfig": {"responseMimeType": "application/json"}
+                }
+                resp = requests.post(url, json=payload, timeout=10)
                 if resp.status_code == 200:
-                    translated = json.loads(resp.json()["candidates"][0]["content"]["parts"][0]["text"])
-                else:
-                    raise Exception(f"REST 1.5 Failed: {resp.status_code}")
+                    text = resp.json()["candidates"][0]["content"]["parts"][0]["text"]
+                    result = parse_json_list(text)
+                    if result: translated = result
+                else: raise Exception(f"REST 1.5 Code {resp.status_code}")
             except Exception as e_rest1:
-                # Strategy 3: Last Resort REST API (gemini-pro) - Legacy
+                # Strategy 3: REST API (gemini-pro)
                 try:
                     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key={api_key}"
                     resp = requests.post(url, json={"contents": [{"parts": [{"text": prompt}]}]}, timeout=10)
                     if resp.status_code == 200:
-                        translated = json.loads(resp.json()["candidates"][0]["content"]["parts"][0]["text"])
+                        text = resp.json()["candidates"][0]["content"]["parts"][0]["text"]
+                        result = parse_json_list(text)
+                        if result: translated = result
                     else:
-                        print(f"All Translation Methods Failed: SDK({e_sdk}), REST1.5({e_rest1}), REST_PRO({resp.status_code})")
-                        lines.append(f"> ⚠️ 번역 실패 (ALL Methods Failed) - 원문으로 표시합니다.")
-                except Exception as e_final:
-                    lines.append(f"> ⚠️ 번역 시스템 오류 ({str(e_final)})")
+                        print(f"Translation Failure: {e_sdk}, {e_rest1}")
+                        lines.append(f"> ⚠️ 실시간 뉴스 번역 일시 중단 (API 지연) - 원문 표시")
+                except: pass
 
     # Formatter
     for i, (item, tr) in enumerate(zip(final, translated)):
