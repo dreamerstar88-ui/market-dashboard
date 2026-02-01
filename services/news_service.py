@@ -168,8 +168,8 @@ class TranslationService:
         count = len(titles)
         prompt = f"Translate to Korean. Return JSON list. Input: {json.dumps(titles, ensure_ascii=False)}"
 
-        # Models to try in order
-        models = ["gemini-2.0-flash-exp", "gemini-1.5-pro", "gemini-1.5-flash"]
+        # Models to try in order (Custom Config: gemini-2.0-flash is standard)
+        models = ["gemini-2.0-flash", "gemini-1.5-flash"]
         # Trial 1: SDK (The most robust way if library is present)
         if self.client:
             try:
@@ -322,29 +322,26 @@ def get_translated_market_news() -> str:
         key_tag = "`Missing / Blocked`"
         
     success_count = sum(1 for i, t in enumerate(translated) if t != titles[i])
-    if success_count == 0:
-        lines.append(f"> 🧪 **Diagnostic**: {source}")
-        lines.append(f"> 📂 **Secrets Keys Found**: `{detected_keys if detected_keys else 'None'}`")
-        if api_key:
-            lines.append(f"> 🛠️ **Key Check**: {key_tag}")
-            lines.append(f"> ❌ **번역 실패**: `{service.last_error if service.last_error else 'Unknown error'}`")
-            # Discover and show available models
-            models = service.discover_models()
-            if models:
-                lines.append(f"> 🔍 **Available Models**: `{', '.join(models[:5])}...`")
+    
+    # Clean UI: Use expander for logs if anything is less than perfect
+    if success_count < len(titles) or source != "Streamlit Secrets":
+        with st.expander("🛠️ 시스템 진단 로그 (번역 문제 발생 시 확인)", expanded=(success_count == 0)):
+            st.write(f"**Diagnostic**: {source}")
+            st.write(f"**Secrets Detection**: `{detected_keys if detected_keys else 'None'}`")
+            if api_key:
+                st.write(f"**Key Check**: `{api_key[:5]}...{api_key[-5:]}`")
+                st.write(f"**Last Error**: `{service.last_error if service.last_error else 'None'}`")
+                models = service.discover_models()
+                if models: st.write(f"**Available Models**: `{', '.join(models[:5])}...`")
             else:
-                lines.append("> ❌ **키 유효성 실패**: 해당 키로 접근 가능한 모델이 없습니다. (AI Studio에서 키 활성 상태 확인 필요)")
-        else:
-            lines.append("> 🚨 **알림**: 유효한 API 키가 없습니다.")
-            lines.append("> 💡 **Secrets 설정 템플릿 (아래 내용을 복사해서 넣으세요):**")
-            lines.append("```toml")
-            lines.append('GEMINI_API_KEY = "내_API_키"')
-            lines.append('FRED_API_KEY = "내_프레드_키"')
-            lines.append("```")
-    elif success_count < len(titles):
-        lines.append(f"> 🔄 **번역 상태**: {success_count}/{len(titles)} 항목 완료 (Source: {source})")
+                st.error("🚨 유효한 API 키가 없습니다. .env 또는 Secrets를 확인해 주세요.")
+    
+    if success_count == len(titles):
+        lines.append(f"> ✅ **뉴스 번역 완료** (Gemini 2.0)")
+    elif success_count > 0:
+        lines.append(f"> 🔄 **번역 상태**: {success_count}/{len(titles)} 항목 완료")
     else:
-        lines.append(f"> ✅ **뉴스 번역 완료** (Source: {source})")
+        lines.append("> ⏳ **번역 대기 중**: API 설정을 확인해 주세요.")
     lines.append("")
 
     for i, item in enumerate(final):
