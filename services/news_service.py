@@ -174,11 +174,14 @@ def get_translated_market_news() -> str:
     translated = titles  
     
     if api_key:
-        # Prompt refined for 1:1 mapping and no combination
+        # Prompt: Strict Financial Translator persona
         prompt = f"""
-        Translate each of the following financial headlines into Korean individually.
-        Keep them concise and return ONLY a JSON list of exactly {len(titles)} strings in the same order.
-        Input: {json.dumps(titles)}
+        You are a financial news translator. 
+        Translate the following headlines to Korean individually.
+        - DO NOT combine items.
+        - Return EXACTLY {len(titles)} translated titles in a JSON list.
+        - Each item in the list must correspond to the input title index.
+        Input JSON: {json.dumps(titles)}
         """
         
         # Strategy 1: SDK (google-genai)
@@ -191,8 +194,11 @@ def get_translated_market_news() -> str:
             )
             if response.text:
                 result = parse_json_list(response.text)
-                if result and len(result) > 0: translated = result
-        except Exception as e_sdk:
+                if result and len(result) > 0:
+                    # Partial mapping to avoid losing data if length differs
+                    for idx, val in enumerate(result):
+                        if idx < len(translated): translated[idx] = val
+        except Exception:
             # Strategy 2: REST API (gemini-1.5-flash)
             try:
                 url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
@@ -201,23 +207,23 @@ def get_translated_market_news() -> str:
                 if resp.status_code == 200:
                     text = resp.json()["candidates"][0]["content"]["parts"][0]["text"]
                     result = parse_json_list(text)
-                    if result and len(result) > 0: translated = result
-                else: raise Exception(f"REST 1.5 Code {resp.status_code}")
-            except Exception as e_rest1:
-                # Strategy 3: REST API (gemini-pro)
-                try:
-                    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key={api_key}"
-                    resp = requests.post(url, json={"contents": [{"parts": [{"text": prompt}]}]}, timeout=10)
-                    if resp.status_code == 200:
-                        text = resp.json()["candidates"][0]["content"]["parts"][0]["text"]
-                        result = parse_json_list(text)
-                        if result and len(result) > 0: translated = result
-                except: pass
+                    if result and len(result) > 0:
+                        for idx, val in enumerate(result):
+                            if idx < len(translated): translated[idx] = val
+            except:
+                pass
 
-    # Range-based loop to ensure all news are shown even if translation count differs
+    # Status indicator
+    success_count = sum(1 for i, t in enumerate(translated) if t != titles[i])
+    if success_count < len(titles):
+        lines.append(f"> 🔄 **번역 상태**: {success_count}/{len(titles)} 항목 번역됨 (나머지 원문 유지)")
+    else:
+        lines.append("> ✅ **실시간 번역 완료**")
+    lines.append("")
+
+    # Formatter
     for i, item in enumerate(final):
-        # Use translated text if index exists, else fallback to original title
-        t = translated[i] if i < len(translated) else item["title"]
+        t = translated[i] # Safe because initialized with titles
         
         # Add a "🔥" badge for breaking news (top 2 news if really fresh, e.g. < 2 hours)
         badge = "🔥" if i < 2 and item["hours_ago"] < 3 else "📢"
