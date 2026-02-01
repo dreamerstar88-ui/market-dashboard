@@ -247,12 +247,15 @@ def get_translated_market_news() -> str:
     source = "Not Found"
     detected_keys = []
     
-    if st:
+    # Priority 1: Manual Session Bypass (Highest)
+    if st and "manual_gemini_key" in st.session_state and st.session_state["manual_gemini_key"]:
+        api_key = st.session_state["manual_gemini_key"]
+        source = "Sidebar Manual Input"
+        
+    # Priority 2: Streamlit Secrets
+    if not api_key and st:
         try:
-            # Diagnostic: See what's actually in Secrets
             detected_keys = list(st.secrets.keys())
-            
-            # Brute-force naming check
             possible_names = ["GEMINI_API_KEY", "gemini_api_key", "GEMINI_KEY", "Gemini_API"]
             for name in possible_names:
                 if name in st.secrets:
@@ -264,14 +267,13 @@ def get_translated_market_news() -> str:
         except Exception:
             pass
             
+    # Priority 3: OS Environment
     if not api_key:
-        # Fallback to OS environment
         env_key = os.getenv("GEMINI_API_KEY")
         if env_key:
-            # Detect poisoned key (old one)
             if env_key.endswith("nRjSY"):
                 source = "OS Environment (POISONED - OLD KEY DETECTED)"
-                api_key = None # Ignore the poisoned key
+                api_key = None 
             else:
                 api_key = env_key
                 source = "OS Environment (.env or System)"

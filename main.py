@@ -9,7 +9,8 @@ from dotenv import load_dotenv
 from datetime import datetime
 import os
 
-load_dotenv(override=True)
+# Load environment variables cautiously
+load_dotenv() # Default mode (don't override system envs)
 
 from components.tv_widgets import TradingViewWidget
 from services.crypto_service import get_kimchi_premium
@@ -72,6 +73,21 @@ st.markdown("""
         .index-change-down {font-size: 14px; color: #ff4444;}
     </style>
 """, unsafe_allow_html=True)
+
+# ============================================================
+# Sidebar Configuration (Bypass for Secret issues)
+# ============================================================
+with st.sidebar:
+    st.header("⚙️ 서비스 설정")
+    manual_gemini_key = st.text_input(
+        "Gemini API Key (Bypass)", 
+        value=st.session_state.get("manual_gemini_key", ""), 
+        type="password",
+        help="클라우드 Secrets 인식이 안 될 경우 여기에 직접 키를 입력하세요."
+    )
+    if manual_gemini_key:
+        st.session_state["manual_gemini_key"] = manual_gemini_key
+        st.success("✅ 수동 키가 적용되었습니다.")
 
 # ============================================================
 # Top Bar: F&G + Ticker Tape

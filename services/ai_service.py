@@ -23,13 +23,23 @@ def generate_market_insight(
     """
     Gemini AI를 사용하여 시장 데이터와 투자 일지를 기반으로 한 줄 인사이트를 생성합니다.
     """
-    api_key = os.getenv("GEMINI_API_KEY")
-    if st:
+    api_key = None
+    
+    # Priority 1: Manual Session Bypass
+    if st and "manual_gemini_key" in st.session_state and st.session_state["manual_gemini_key"]:
+        api_key = st.session_state["manual_gemini_key"]
+        
+    # Priority 2: Streamlit Secrets
+    if not api_key and st:
         try:
             if "GEMINI_API_KEY" in st.secrets:
                 api_key = st.secrets["GEMINI_API_KEY"]
         except Exception:
             pass
+            
+    # Priority 3: OS Environment
+    if not api_key:
+        api_key = os.getenv("GEMINI_API_KEY")
             
     if api_key:
         api_key = str(api_key).strip().replace('"', '').replace("'", "")
