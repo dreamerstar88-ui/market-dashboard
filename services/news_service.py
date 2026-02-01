@@ -164,7 +164,8 @@ def get_translated_market_news() -> str:
     
     if api_key:
         try:
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={api_key}"
+            # Use gemini-1.5-flash (Stable) instead of experimental 2.0
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
             prompt = f"""
             Translate updated financial headlines to Korean.
             Summarize slightly.
@@ -173,9 +174,16 @@ def get_translated_market_news() -> str:
             """
             payload = {"contents": [{"parts": [{"text": prompt}]}], "generationConfig": {"responseMimeType": "application/json"}}
             resp = requests.post(url, json=payload, timeout=20)
+            
             if resp.status_code == 200:
                 translated = json.loads(resp.json()["candidates"][0]["content"]["parts"][0]["text"])
-        except: pass
+            else:
+                # Fallback but log/print error for debugging
+                print(f"Gemini API Error: {resp.status_code} - {resp.text}")
+                lines.append(f"> ⚠️ 번역 실패 (API Error: {resp.status_code}) - 원문으로 표시합니다.")
+        except Exception as e:
+            print(f"Translation Exception: {e}")
+            lines.append(f"> ⚠️ 번역 오류 ({str(e)}) - 원문으로 표시합니다.")
 
     # Formatter
     lines = ["### 📰 시장 뉴스 (실시간)", ""]
