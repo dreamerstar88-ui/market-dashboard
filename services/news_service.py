@@ -10,6 +10,7 @@ import html
 import json
 from datetime import datetime
 from typing import Optional, List, Dict
+from dotenv import load_dotenv
 try:
     import streamlit as st
 except ImportError:
