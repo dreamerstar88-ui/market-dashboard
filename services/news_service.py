@@ -167,26 +167,47 @@ def get_translated_market_news() -> str:
     
     if api_key:
         try:
-            # Revert to 'gemini-pro' (Most stable/compatible legacy model)
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key={api_key}"
+            # Use google-genai SDK for consistency with ai_service.py
+            # This handles authentication and endpoints more reliably than raw REST calls
+            from google import genai
+            from google.genai import types
+
+            client = genai.Client(api_key=api_key)
+            
             prompt = f"""
             Translate updated financial headlines to Korean.
             Summarize slightly.
             Return ONLY raw JSON list of strings.
             Input: {json.dumps(titles)}
             """
-            payload = {"contents": [{"parts": [{"text": prompt}]}], "generationConfig": {"responseMimeType": "application/json"}}
-            resp = requests.post(url, json=payload, timeout=20)
             
-            if resp.status_code == 200:
-                translated = json.loads(resp.json()["candidates"][0]["content"]["parts"][0]["text"])
-            else:
-                # Fallback but log/print error for debugging
-                print(f"Gemini API Error: {resp.status_code} - {resp.text}")
-                lines.append(f"> ⚠️ 번역 실패 (API Error: {resp.status_code}) - 원문으로 표시합니다.")
+            response = client.models.generate_content(
+                model="gemini-2.0-flash-exp",
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    response_mime_type="application/json",
+                    max_output_tokens=1000,
+                ),
+            )
+            
+            if response.text:
+                translated = json.loads(response.text)
+            
+        except ImportError:
+            lines.append("> ⚠️ Server Error: `google-genai` library missing.")
         except Exception as e:
-            print(f"Translation Exception: {e}")
-            lines.append(f"> ⚠️ 번역 오류 ({str(e)}) - 원문으로 표시합니다.")
+            # If 2.0 fails, try fallback to 1.5 flash via SDK
+            try:
+                response = client.models.generate_content(
+                    model="gemini-1.5-flash",
+                    contents=prompt,
+                    config=types.GenerateContentConfig(response_mime_type="application/json")
+                )
+                if response.text:
+                    translated = json.loads(response.text)
+            except Exception as e2:
+                print(f"Translation Exception: {e2}")
+                lines.append(f"> ⚠️ 번역 오류 - 원문으로 표시합니다.")
 
     for i, (item, tr) in enumerate(zip(final, translated)):
         t = tr if tr else item["title"]
