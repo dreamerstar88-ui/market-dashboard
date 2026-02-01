@@ -173,23 +173,17 @@ def get_translated_market_news() -> str:
     titles = [n["title"] for n in final]
     translated = titles  
     
-    if not api_key:
-        lines.append("> ⚠️ **API Key Missing**: `GEMINI_API_KEY` 환경 변수가 설정되지 않았습니다. (Streamlit Cloud Secrets 확인)")
-    else:
-        # Key diagnosis (Safe: only first 4 chars)
-        key_prefix = api_key[:4] + "..." + api_key[-2:]
-        lines.append(f"> 🛠️ **DEBUG**: Key Prefix `{key_prefix}` 감지됨")
+    if api_key:
+        # Simplified prompt and removed strict responseMimeType to avoid 400 errors
+        prompt = f"Translate these financial headlines to Korean. Summarize slightly. Return ONLY as a JSON list of strings. Input: {json.dumps(titles)}"
         
-        prompt = f"Translate financial headlines to Korean. Summarize. Return ONLY raw JSON list of strings. Input: {json.dumps(titles)}"
         # Strategy 1: SDK (google-genai)
         try:
             from google import genai
-            from google.genai import types
             client = genai.Client(api_key=api_key)
             response = client.models.generate_content(
                 model="gemini-2.0-flash-exp",
-                contents=prompt,
-                config=types.GenerateContentConfig(response_mime_type="application/json")
+                contents=prompt
             )
             if response.text:
                 result = parse_json_list(response.text)
@@ -198,16 +192,13 @@ def get_translated_market_news() -> str:
             # Strategy 2: REST API (gemini-1.5-flash)
             try:
                 url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
-                payload = {
-                    "contents": [{"parts": [{"text": prompt}]}],
-                    "generationConfig": {"responseMimeType": "application/json"}
-                }
+                payload = {"contents": [{"parts": [{"text": prompt}]}]}
                 resp = requests.post(url, json=payload, timeout=10)
                 if resp.status_code == 200:
                     text = resp.json()["candidates"][0]["content"]["parts"][0]["text"]
                     result = parse_json_list(text)
                     if result: translated = result
-                else: raise Exception(f"REST 1.5 Code {resp.status_code}: {resp.text[:100]}")
+                else: raise Exception(f"REST 1.5 Code {resp.status_code}")
             except Exception as e_rest1:
                 # Strategy 3: REST API (gemini-pro)
                 try:
@@ -218,10 +209,11 @@ def get_translated_market_news() -> str:
                         result = parse_json_list(text)
                         if result: translated = result
                     else:
-                        print(f"Translation Failure: {e_sdk}, {e_rest1}")
-                        lines.append(f"> ⚠️ **번역 실패**: 모든 방법 시도 후 실패함 (에러: {str(e_rest1)[:50]}...)")
-                except Exception as e_final:
-                    lines.append(f"> ⚠️ **최종 오류**: {str(e_final)}")
+                        print(f"Translation failure final fallback: {resp.status_code}")
+                except: pass
+
+    # Remove debug info for cleaner UI
+    # lines.append(f"> 🛠️ **DEBUG**: Key Prefix 감지됨")
 
     # Formatter
     for i, (item, tr) in enumerate(zip(final, translated)):
