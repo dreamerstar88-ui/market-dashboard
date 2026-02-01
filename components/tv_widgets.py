@@ -11,7 +11,6 @@ class TradingViewWidget:
     @staticmethod
     def render_ticker_tape(locale: str = "kr") -> None:
         """상단 시세표"""
-        html_code = f"""
         <div class="tradingview-widget-container">
           <div class="tradingview-widget-container__widget"></div>
           <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-ticker-tape.js" async>
@@ -26,13 +25,13 @@ class TradingViewWidget:
             "showSymbolLogo": true,
             "colorTheme": "dark",
             "isTransparent": false,
-            "displayMode": "adaptive",
+            "displayMode": "compact",
             "locale": "{locale}"
           }}
           </script>
         </div>
         """
-        components.html(html_code, height=46)
+        components.html(html_code, height=76)
 
     @staticmethod
     def render_advanced_chart(symbol: str = "NASDAQ:AAPL", height: int = 400, locale: str = "kr") -> None:

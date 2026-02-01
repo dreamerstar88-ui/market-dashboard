@@ -31,19 +31,34 @@ from config.settings import APP_TITLE, APP_ICON
 st.set_page_config(page_title=APP_TITLE, page_icon=APP_ICON, layout="wide", initial_sidebar_state="collapsed")
 
 st.markdown("""
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <style>
         .block-container {padding: 0.5rem;}
         header, footer {visibility: hidden;}
         button[data-baseweb="tab"] {font-size: 0.8rem !important; padding: 0.4rem !important;}
         .stMetric {background: rgba(30,30,30,0.5); border-radius: 8px; padding: 0.5rem;}
+        
+        /* Mobile Grid Layout System */
+        .mobile-grid-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: space-between;
+            width: 100%;
+        }
         .index-card {
             background: linear-gradient(135deg, #1a1a2e, #16213e);
             border-radius: 10px;
             padding: 12px;
             text-align: center;
+            flex: 1 1 45%; /* 2 items per row on mobile (45% width) */
+            min-width: 140px;
+            margin-bottom: 5px;
         }
         .index-name {font-size: 12px; color: #888;}
-        .index-price {font-size: 20px; font-weight: bold; color: #fff;}
+        .index-price {font-size: 18px; font-weight: bold; color: #fff;}
         .index-change-up {font-size: 14px; color: #00ff88;}
         .index-change-down {font-size: 14px; color: #ff4444;}
     </style>
@@ -107,20 +122,26 @@ with tabs[0]:
     
     cols = st.columns(3)
     icons = ["📈", "📊", "📉"]
+    
+    # HTML Grid for Responsive Layout (Force 2 columns on mobile)
+    html_content = '<div class="mobile-grid-container">'
+    
     for i, idx in enumerate(us_indices):
-        with cols[i]:
-            if not idx.error:
-                change_color = "#00ff88" if idx.change_percent >= 0 else "#ff4444"
-                change_sign = "+" if idx.change_percent >= 0 else ""
-                st.markdown(f"""
-                <div class="index-card">
-                    <div class="index-name">{icons[i]} {idx.name}</div>
-                    <div class="index-price">{idx.current_price:,.2f}</div>
-                    <div style="color:{change_color};">{change_sign}{idx.change_percent:.2f}%</div>
-                </div>
-                """, unsafe_allow_html=True)
-            else:
-                st.warning(f"{idx.name}: {idx.error}")
+        if not idx.error:
+            change_color = "#00ff88" if idx.change_percent >= 0 else "#ff4444"
+            change_sign = "+" if idx.change_percent >= 0 else ""
+            html_content += f"""
+            <div class="index-card">
+                <div class="index-name">{icons[i]} {idx.name}</div>
+                <div class="index-price">{idx.current_price:,.2f}</div>
+                <div style="color:{change_color};">{change_sign}{idx.change_percent:.2f}%</div>
+            </div>
+            """
+        else:
+            html_content += f'<div class="index-card" style="color:orange;">{idx.name}<br>Error</div>'
+            
+    html_content += '</div>'
+    st.markdown(html_content, unsafe_allow_html=True)
     
     st.divider()
     
@@ -162,21 +183,25 @@ with tabs[1]:
     with st.spinner("지수 로딩..."):
         kr_indices = get_kr_indices()
     
-    cols = st.columns(2)
+    # HTML Grid for Responsive Layout (Force 2 columns on mobile)
+    html_content = '<div class="mobile-grid-container">'
+    
     for i, idx in enumerate(kr_indices):
-        with cols[i]:
-            if not idx.error:
-                change_color = "#00ff88" if idx.change_percent >= 0 else "#ff4444"
-                change_sign = "+" if idx.change_percent >= 0 else ""
-                st.markdown(f"""
-                <div class="index-card">
-                    <div class="index-name">🇰🇷 {idx.name}</div>
-                    <div class="index-price">{idx.current_price:,.2f}</div>
-                    <div style="color:{change_color};">{change_sign}{idx.change_percent:.2f}%</div>
-                </div>
-                """, unsafe_allow_html=True)
-            else:
-                st.warning(f"{idx.name}: {idx.error}")
+        if not idx.error:
+            change_color = "#00ff88" if idx.change_percent >= 0 else "#ff4444"
+            change_sign = "+" if idx.change_percent >= 0 else ""
+            html_content += f"""
+            <div class="index-card">
+                <div class="index-name">🇰🇷 {idx.name}</div>
+                <div class="index-price">{idx.current_price:,.2f}</div>
+                <div style="color:{change_color};">{change_sign}{idx.change_percent:.2f}%</div>
+            </div>
+            """
+        else:
+             html_content += f'<div class="index-card" style="color:orange;">{idx.name}<br>Error</div>'
+             
+    html_content += '</div>'
+    st.markdown(html_content, unsafe_allow_html=True)
     
     st.divider()
     st.info("💡 TradingView 무료 위젯이 한국 개별주식을 지원하지 않아 **Yahoo Finance** 데이터로 표시합니다.")
@@ -366,6 +391,11 @@ with tabs[5]:
     st.caption("📌 중요도: 거시경제 > 지수 > 개별주식 순으로 정렬")
     
     use_gemini = st.checkbox("🔄 Gemini 한국어 번역", value=True)
+    
+    # API Key Debug Check
+    if not os.getenv("GEMINI_API_KEY"):
+         st.error("⚠️ Gemini API Key가 설정되지 않았습니다. .env 파일을 확인하거나 클라우드 Secrets를 설정해주세요.")
+         
     if use_gemini:
         with st.spinner("뉴스 수집 및 번역 중..."):
             st.markdown(get_translated_market_news())
