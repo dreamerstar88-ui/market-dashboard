@@ -128,50 +128,50 @@ class TranslationService:
     def __init__(self, api_key: Optional[str]):
         self.api_key = api_key
         self.client = None
+        self.last_error = None
         if api_key:
             try:
                 from google import genai
                 self.client = genai.Client(api_key=api_key)
-            except ImportError:
-                print("TranslationService: google-genai library not found.")
+            except Exception as e:
+                self.last_error = f"Library Load Error: {str(e)}"
 
     def translate_headlines(self, titles: List[str]) -> List[str]:
         """기사를 유동적으로 번역하여 리스트로 반환"""
         if not self.api_key:
+            self.last_error = "API Key missing"
             return titles
             
         count = len(titles)
-        # Personas and examples increase mapping reliability
-        prompt = f"""You are a professional financial news translator.
-Translate the following {count} news headlines into Korean individually.
-Guidelines:
-1. One translation per line.
-2. Maintain the original meaning and tone.
-3. Return ONLY a JSON list of {count} strings.
+        prompt = f"Translate to Korean. Return JSON list. Input: {json.dumps(titles, ensure_ascii=False)}"
 
-Input: {json.dumps(titles, ensure_ascii=False)}"""
-
-        # Trial 1: SDK (Latest Model)
+        # Models to try in order
+        models = ["gemini-2.0-flash-exp", "gemini-1.5-pro", "gemini-1.5-flash"]
+        
+        # Trial 1: SDK (The most robust way if library is present)
         if self.client:
-            try:
-                from google.genai import types
-                response = self.client.models.generate_content(
-                    model="gemini-2.0-flash-exp",
-                    contents=prompt,
-                    config=types.GenerateContentConfig(
-                        temperature=0.1, # Low temperature for consistency
+            for model_name in models:
+                try:
+                    from google.genai import types
+                    response = self.client.models.generate_content(
+                        model=model_name,
+                        contents=prompt,
+                        config=types.GenerateContentConfig(temperature=0.0)
                     )
-                )
-                if response.text:
-                    result = parse_json_list(response.text)
-                    if result:
-                        final_list = titles.copy()
-                        for i, r in enumerate(result[:count]): final_list[i] = r
-                        return final_list
-            except Exception as e:
-                print(f"TranslationService (SDK) Error: {e}")
-
-        # Trial 2: REST Fallback (Direct request)
+                    if response.text:
+                        result = parse_json_list(response.text)
+                        if result:
+                            # Success! Ensure 1:1 mapping
+                            final_list = titles.copy()
+                            for i, r in enumerate(result[:count]): final_list[i] = r
+                            return final_list
+                except Exception as e:
+                    self.last_error = f"SDK {model_name} Error: {str(e)}"
+                    print(f"TranslationService: {model_name} failed. {e}")
+                    continue # Try next model
+        
+        # Trial 2: REST Fallback (Direct request v1beta)
+        # Using a very simple prompt to avoid 400s
         try:
             url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={self.api_key}"
             payload = {"contents": [{"parts": [{"text": prompt}]}]}
@@ -183,8 +183,10 @@ Input: {json.dumps(titles, ensure_ascii=False)}"""
                     final_list = titles.copy()
                     for i, r in enumerate(result[:count]): final_list[i] = r
                     return final_list
+            else:
+                self.last_error = f"REST Error {resp.status_code}: {resp.text[:100]}"
         except Exception as e:
-            print(f"TranslationService (REST) Error: {e}")
+            self.last_error = f"Connection Error: {str(e)}"
 
         return titles
 
@@ -243,7 +245,8 @@ def get_translated_market_news() -> str:
     # Diagnostic Status
     success_count = sum(1 for i, t in enumerate(translated) if t != titles[i])
     if success_count == 0 and api_key:
-        lines.append("> ⏳ **번역 대기 중**: 데이터 수신 후 번역이 준비됩니다.")
+        lines.append(f"> ❌ **번역 실패**: `{service.last_error if service.last_error else 'Unknown error'}`")
+        lines.append("> 💡 **조치**: Streamlit Secrets 설정값을 다시 확인해 주세요.")
     elif success_count < len(titles):
         lines.append(f"> 🔄 **번역 상태**: {success_count}/{len(titles)} 항목 완료")
     else:
