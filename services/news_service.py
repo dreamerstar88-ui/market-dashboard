@@ -10,9 +10,12 @@ import html
 import json
 from datetime import datetime
 from typing import Optional, List, Dict
-from dotenv import load_dotenv
+try:
+    import streamlit as st
+except ImportError:
+    st = None
 
-load_dotenv(override=True)
+load_dotenv() # Load local .env if exists, but don't override system/cloud envs
 
 
 def get_economic_events_for_date(target_date: datetime) -> List[Dict]:
@@ -126,13 +129,14 @@ class TranslationService:
     """Gemini API를 이용한 전문 번역 서비스 (Python-Pro patterns)"""
     
     def __init__(self, api_key: Optional[str]):
-        self.api_key = api_key
+        # Clean the API Key (Remove quotes and spaces that often come from TOML/Secrets copy-paste)
+        self.api_key = str(api_key).strip().replace('"', '').replace("'", "") if api_key else None
         self.client = None
         self.last_error = None
-        if api_key:
+        if self.api_key and self.api_key != "None":
             try:
                 from google import genai
-                self.client = genai.Client(api_key=api_key)
+                self.client = genai.Client(api_key=self.api_key)
             except Exception as e:
                 self.last_error = f"Library Load Error: {str(e)}"
 
@@ -210,7 +214,7 @@ def get_translated_market_news() -> str:
     
     all_items.sort(key=lambda x: x["hours_ago"])
     
-    # Select logic
+    # Selection logic remains same for consistency
     breaking_quota = 2
     breaking = all_items[:breaking_quota]
     pool = all_items[breaking_quota:]
@@ -232,21 +236,31 @@ def get_translated_market_news() -> str:
     final.sort(key=lambda x: x["hours_ago"])
     final = final[:10]
     
-    # Professional Translation
-    api_key = os.getenv("GEMINI_API_KEY")
-    titles = [n["title"] for n in final]
+    # --- Professional Translation (Streamlit Cloud Optimized) ---
+    api_key = None
+    if st and "GEMINI_API_KEY" in st.secrets:
+        api_key = st.secrets["GEMINI_API_KEY"]
+    else:
+        api_key = os.getenv("GEMINI_API_KEY")
     
+    titles = [n["title"] for n in final]
     service = TranslationService(api_key)
     translated = service.translate_headlines(titles)
     
-    # Formatter
+    # Professional Formatter
     lines = ["### 📰 시장 뉴스 (실시간)", ""]
     
-    # Diagnostic Status
+    # Diagnostic Status (Safe Key Verification)
+    if api_key:
+        clean_k = str(api_key).strip().replace('"', '').replace("'", "")
+        key_tag = f"`{clean_k[:5]}...{clean_k[-5:]}`"
+    else:
+        key_tag = "`Missing`"
     success_count = sum(1 for i, t in enumerate(translated) if t != titles[i])
     if success_count == 0 and api_key:
+        lines.append(f"> 🛠️ **Key Check**: {key_tag}")
         lines.append(f"> ❌ **번역 실패**: `{service.last_error if service.last_error else 'Unknown error'}`")
-        lines.append("> 💡 **조치**: Streamlit Secrets 설정값을 다시 확인해 주세요.")
+        lines.append("> 💡 **해결**: Secrets에 따옴표(`\"` 또는 `'`)가 포함되어 있다면 제거해 주세요.")
     elif success_count < len(titles):
         lines.append(f"> 🔄 **번역 상태**: {success_count}/{len(titles)} 항목 완료")
     else:
