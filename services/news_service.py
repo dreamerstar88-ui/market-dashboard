@@ -135,16 +135,29 @@ class TranslationService:
     """Gemini API를 이용한 전문 번역 서비스 (Python-Pro patterns)"""
     
     def __init__(self, api_key: Optional[str]):
-        # Clean the API Key (Remove quotes and spaces that often come from TOML/Secrets copy-paste)
-        self.api_key = str(api_key).strip().replace('"', '').replace("'", "") if api_key else None
+        self.api_key = api_key
         self.client = None
-        self.last_error = None
-        if self.api_key and self.api_key != "None":
+        self.last_error = ""
+        self.available_models = []
+        if api_key:
             try:
                 from google import genai
-                self.client = genai.Client(api_key=self.api_key)
-            except Exception as e:
-                self.last_error = f"Library Load Error: {str(e)}"
+                self.client = genai.Client(api_key=api_key)
+            except Exception:
+                pass
+
+    def discover_models(self) -> List[str]:
+        """조회가 가능한 모델 목록을 수동으로 탐색"""
+        if not self.api_key: return []
+        try:
+            url = f"https://generativelanguage.googleapis.com/v1/models?key={self.api_key}"
+            resp = requests.get(url, timeout=5)
+            if resp.status_code == 200:
+                models = resp.json().get("models", [])
+                return [m["name"].replace("models/", "") for m in models]
+        except:
+            pass
+        return []
 
     def translate_headlines(self, titles: List[str]) -> List[str]:
         """기사를 유동적으로 번역하여 리스트로 반환"""
@@ -315,8 +328,19 @@ def get_translated_market_news() -> str:
         if api_key:
             lines.append(f"> 🛠️ **Key Check**: {key_tag}")
             lines.append(f"> ❌ **번역 실패**: `{service.last_error if service.last_error else 'Unknown error'}`")
+            # Discover and show available models
+            models = service.discover_models()
+            if models:
+                lines.append(f"> 🔍 **Available Models**: `{', '.join(models[:5])}...`")
+            else:
+                lines.append("> ❌ **키 유효성 실패**: 해당 키로 접근 가능한 모델이 없습니다. (AI Studio에서 키 활성 상태 확인 필요)")
         else:
-            lines.append("> 🚨 **알림**: 유효한 API 키가 없습니다. 위 'Secrets Keys Found'에 `GEMINI_API_KEY`가 있는지 확인해 주세요.")
+            lines.append("> 🚨 **알림**: 유효한 API 키가 없습니다.")
+            lines.append("> 💡 **Secrets 설정 템플릿 (아래 내용을 복사해서 넣으세요):**")
+            lines.append("```toml")
+            lines.append('GEMINI_API_KEY = "내_API_키"')
+            lines.append('FRED_API_KEY = "내_프레드_키"')
+            lines.append("```")
     elif success_count < len(titles):
         lines.append(f"> 🔄 **번역 상태**: {success_count}/{len(titles)} 항목 완료 (Source: {source})")
     else:
