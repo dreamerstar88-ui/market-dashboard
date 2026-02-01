@@ -157,6 +157,9 @@ def get_translated_market_news() -> str:
     final.sort(key=lambda x: x["hours_ago"])
     final = final[:10]
     
+    # Formatter Initialization (moved up for error handling)
+    lines = ["### 📰 시장 뉴스 (실시간)", ""]
+    
     # --- Translation & Formatting ---
     api_key = os.getenv("GEMINI_API_KEY")
     titles = [n["title"] for n in final]
@@ -185,8 +188,6 @@ def get_translated_market_news() -> str:
             print(f"Translation Exception: {e}")
             lines.append(f"> ⚠️ 번역 오류 ({str(e)}) - 원문으로 표시합니다.")
 
-    # Formatter
-    lines = ["### 📰 시장 뉴스 (실시간)", ""]
     for i, (item, tr) in enumerate(zip(final, translated)):
         t = tr if tr else item["title"]
         # Add a "🔥" badge for breaking news (top 2 news if really fresh, e.g. < 2 hours)
