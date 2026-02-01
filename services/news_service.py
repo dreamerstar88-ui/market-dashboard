@@ -163,52 +163,45 @@ def get_translated_market_news() -> str:
     # --- Translation & Formatting ---
     api_key = os.getenv("GEMINI_API_KEY")
     titles = [n["title"] for n in final]
-    translated = titles # Default
+    translated = titles  # Default (fallback if translation fails)
     
     if api_key:
+        # Strategy 1: Try SDK (google-genai) with Gemini 2.0 Flash (Best quality)
         try:
-            # Use google-genai SDK for consistency with ai_service.py
-            # This handles authentication and endpoints more reliably than raw REST calls
             from google import genai
             from google.genai import types
-
             client = genai.Client(api_key=api_key)
-            
-            prompt = f"""
-            Translate updated financial headlines to Korean.
-            Summarize slightly.
-            Return ONLY raw JSON list of strings.
-            Input: {json.dumps(titles)}
-            """
-            
             response = client.models.generate_content(
                 model="gemini-2.0-flash-exp",
-                contents=prompt,
-                config=types.GenerateContentConfig(
-                    response_mime_type="application/json",
-                    max_output_tokens=1000,
-                ),
+                contents=f"""Translate to Korean, summarize. Return JSON list strings. Input: {json.dumps(titles)}""",
+                config=types.GenerateContentConfig(response_mime_type="application/json")
             )
-            
             if response.text:
                 translated = json.loads(response.text)
-            
-        except ImportError:
-            lines.append("> ⚠️ Server Error: `google-genai` library missing.")
-        except Exception as e:
-            # If 2.0 fails, try fallback to 1.5 flash via SDK
+        except Exception as e_sdk:
+            # Strategy 2: Fallback to REST API (gemini-1.5-flash) - Stable/Widely available
             try:
-                response = client.models.generate_content(
-                    model="gemini-1.5-flash",
-                    contents=prompt,
-                    config=types.GenerateContentConfig(response_mime_type="application/json")
-                )
-                if response.text:
-                    translated = json.loads(response.text)
-            except Exception as e2:
-                print(f"Translation Exception: {e2}")
-                lines.append(f"> ⚠️ 번역 오류 - 원문으로 표시합니다.")
+                url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
+                prompt = f"""Translate to Korean, summarize. Return JSON list strings. Input: {json.dumps(titles)}"""
+                resp = requests.post(url, json={"contents": [{"parts": [{"text": prompt}]}]}, timeout=10)
+                if resp.status_code == 200:
+                    translated = json.loads(resp.json()["candidates"][0]["content"]["parts"][0]["text"])
+                else:
+                    raise Exception(f"REST 1.5 Failed: {resp.status_code}")
+            except Exception as e_rest1:
+                # Strategy 3: Last Resort REST API (gemini-pro) - Legacy
+                try:
+                    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key={api_key}"
+                    resp = requests.post(url, json={"contents": [{"parts": [{"text": prompt}]}]}, timeout=10)
+                    if resp.status_code == 200:
+                        translated = json.loads(resp.json()["candidates"][0]["content"]["parts"][0]["text"])
+                    else:
+                        print(f"All Translation Methods Failed: SDK({e_sdk}), REST1.5({e_rest1}), REST_PRO({resp.status_code})")
+                        lines.append(f"> ⚠️ 번역 실패 (ALL Methods Failed) - 원문으로 표시합니다.")
+                except Exception as e_final:
+                    lines.append(f"> ⚠️ 번역 시스템 오류 ({str(e_final)})")
 
+    # Formatter
     for i, (item, tr) in enumerate(zip(final, translated)):
         t = tr if tr else item["title"]
         # Add a "🔥" badge for breaking news (top 2 news if really fresh, e.g. < 2 hours)
