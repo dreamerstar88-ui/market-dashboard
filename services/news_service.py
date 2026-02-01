@@ -273,13 +273,14 @@ def get_translated_market_news() -> str:
             
     # Priority 3: OS Environment
     if not api_key:
+        # Fallback to OS environment
         env_key = os.getenv("GEMINI_API_KEY")
         if env_key:
+            api_key = env_key
+            # Detect potentially poisoned key (old one)
             if env_key.endswith("nRjSY"):
-                source = "OS Environment (POISONED - OLD KEY DETECTED)"
-                api_key = None 
+                source = "OS Environment (OLD KEY DETECTED - 400 ERRORS LIKELY)"
             else:
-                api_key = env_key
                 source = "OS Environment (.env or System)"
     
     if api_key:
@@ -316,8 +317,12 @@ def get_translated_market_news() -> str:
 
     for i, item in enumerate(final):
         t = translated[i]
+        # Logic to detect if it was actually translated
+        is_translated = (t != item["title"])
         badge = "🔥" if i < 2 and item["hours_ago"] < 3 else "📢"
-        lines.append(f"**{badge} [{item['time']}] {item['source']}** [🔗]({item['link']})  \n&nbsp;&nbsp;&nbsp;&nbsp;{t}\n")
+        trans_badge = " 🤖" if is_translated else ""
+        
+        lines.append(f"**{badge} [{item['time']}] {item['source']}**{trans_badge} [🔗]({item['link']})  \n&nbsp;&nbsp;&nbsp;&nbsp;{t}\n")
         
     return "\n".join(lines)
 
