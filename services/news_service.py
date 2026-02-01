@@ -238,11 +238,13 @@ def get_translated_market_news() -> str:
     final = final[:10]
     
     # --- Professional Translation (Streamlit Cloud Optimized) ---
-    api_key = None
-    if st and "GEMINI_API_KEY" in st.secrets:
-        api_key = st.secrets["GEMINI_API_KEY"]
-    else:
-        api_key = os.getenv("GEMINI_API_KEY")
+    api_key = os.getenv("GEMINI_API_KEY")
+    if st:
+        try:
+            if "GEMINI_API_KEY" in st.secrets:
+                api_key = st.secrets["GEMINI_API_KEY"]
+        except Exception:
+            pass
     
     titles = [n["title"] for n in final]
     service = TranslationService(api_key)
