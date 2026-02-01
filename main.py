@@ -10,7 +10,7 @@ from datetime import datetime
 import os
 
 # Load environment variables cautiously
-load_dotenv() # Default mode (don't override system envs)
+load_dotenv(override=True) # Force .env to win over local system environment variables
 
 from components.tv_widgets import TradingViewWidget
 from services.crypto_service import get_kimchi_premium
