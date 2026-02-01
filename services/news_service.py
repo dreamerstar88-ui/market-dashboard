@@ -180,21 +180,25 @@ class TranslationService:
                     print(f"TranslationService: {model_name} failed. {e}")
                     continue # Try next model
         
-        # Trial 2: REST Fallback (Direct request v1beta)
+        # Trial 2: REST Fallback (Direct request v1)
         # Using a very simple prompt to avoid 400s
         try:
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={self.api_key}"
-            payload = {"contents": [{"parts": [{"text": prompt}]}]}
-            resp = requests.post(url, json=payload, timeout=10)
-            if resp.status_code == 200:
-                text = resp.json()["candidates"][0]["content"]["parts"][0]["text"]
-                result = parse_json_list(text)
-                if result:
-                    final_list = titles.copy()
-                    for i, r in enumerate(result[:count]): final_list[i] = r
-                    return final_list
-            else:
-                self.last_error = f"REST Error {resp.status_code}: {resp.text[:100]}"
+            # v1 is more standard for GA models
+            headers = {'Content-Type': 'application/json'}
+            # Try both standard and latest names
+            for m_id in ["gemini-1.5-flash", "gemini-1.5-flash-latest"]:
+                url = f"https://generativelanguage.googleapis.com/v1/models/{m_id}:generateContent?key={self.api_key}"
+                payload = {"contents": [{"parts": [{"text": prompt}]}]}
+                resp = requests.post(url, json=payload, headers=headers, timeout=10)
+                if resp.status_code == 200:
+                    text = resp.json()["candidates"][0]["content"]["parts"][0]["text"]
+                    result = parse_json_list(text)
+                    if result:
+                        final_list = titles.copy()
+                        for i, r in enumerate(result[:count]): final_list[i] = r
+                        return final_list
+                else:
+                    self.last_error = f"REST {m_id} Error {resp.status_code}: {resp.text[:100]}"
         except Exception as e:
             self.last_error = f"Connection Error: {str(e)}"
 
