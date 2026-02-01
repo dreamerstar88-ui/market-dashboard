@@ -167,8 +167,8 @@ def get_translated_market_news() -> str:
     
     if api_key:
         try:
-            # Use gemini-1.5-flash (Stable) instead of experimental 2.0
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
+            # Revert to 'gemini-pro' (Most stable/compatible legacy model)
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key={api_key}"
             prompt = f"""
             Translate updated financial headlines to Korean.
             Summarize slightly.
