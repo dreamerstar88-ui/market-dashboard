@@ -10,6 +10,11 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
+try:
+    import streamlit as st
+except ImportError:
+    st = None
+
 def generate_market_insight(
     kimchi_premium: float,
     usd_krw: float,
@@ -17,18 +22,20 @@ def generate_market_insight(
 ) -> Optional[str]:
     """
     Gemini AI를 사용하여 시장 데이터와 투자 일지를 기반으로 한 줄 인사이트를 생성합니다.
-
-    Args:
-        kimchi_premium: 현재 김치프리미엄 (%)
-        usd_krw: 현재 원달러 환율
-        journal_text: 사용자의 최근 투자 일지 내용
-
-    Returns:
-        Optional[str]: AI가 생성한 한 줄 인사이트 또는 에러 시 None
     """
     api_key = os.getenv("GEMINI_API_KEY")
-    if not api_key:
-        return "⚠️ GEMINI_API_KEY가 .env 파일에 설정되지 않았습니다."
+    if st:
+        try:
+            if "GEMINI_API_KEY" in st.secrets:
+                api_key = st.secrets["GEMINI_API_KEY"]
+        except Exception:
+            pass
+            
+    if api_key:
+        api_key = str(api_key).strip().replace('"', '').replace("'", "")
+
+    if not api_key or api_key == "None":
+        return "⚠️ GEMINI_API_KEY가 설정되지 않았습니다."
 
     try:
         from google import genai
