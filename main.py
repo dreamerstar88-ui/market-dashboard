@@ -132,12 +132,12 @@ with tabs[0]:
             change_color = "#00ff88" if idx.change_percent >= 0 else "#ff4444"
             change_sign = "+" if idx.change_percent >= 0 else ""
             html_content += f"""
-            <div class="index-card">
-                <div class="index-name">{icons[i]} {idx.name}</div>
-                <div class="index-price">{idx.current_price:,.2f}</div>
-                <div style="color:{change_color};">{change_sign}{idx.change_percent:.2f}%</div>
-            </div>
-            """
+<div class="index-card">
+    <div class="index-name">{icons[i]} {idx.name}</div>
+    <div class="index-price">{idx.current_price:,.2f}</div>
+    <div style="color:{change_color};">{change_sign}{idx.change_percent:.2f}%</div>
+</div>
+"""
         else:
             html_content += f'<div class="index-card" style="color:orange;">{idx.name}<br>Error</div>'
             
@@ -192,12 +192,12 @@ with tabs[1]:
             change_color = "#00ff88" if idx.change_percent >= 0 else "#ff4444"
             change_sign = "+" if idx.change_percent >= 0 else ""
             html_content += f"""
-            <div class="index-card">
-                <div class="index-name">🇰🇷 {idx.name}</div>
-                <div class="index-price">{idx.current_price:,.2f}</div>
-                <div style="color:{change_color};">{change_sign}{idx.change_percent:.2f}%</div>
-            </div>
-            """
+<div class="index-card">
+    <div class="index-name">🇰🇷 {idx.name}</div>
+    <div class="index-price">{idx.current_price:,.2f}</div>
+    <div style="color:{change_color};">{change_sign}{idx.change_percent:.2f}%</div>
+</div>
+"""
         else:
              html_content += f'<div class="index-card" style="color:orange;">{idx.name}<br>Error</div>'
              
