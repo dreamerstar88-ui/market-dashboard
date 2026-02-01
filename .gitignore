@@ -1,1 +1,8 @@
+
 .env
+__pycache__/
+*.pyc
+.streamlit/
+data/*.csv
+data/*.md
+!data/README.md
