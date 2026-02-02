@@ -187,7 +187,7 @@ with tabs[1]:
     # helper to process info from history
     def get_index_info(data, name):
         if not data:
-            return {"name": name, "price": 0, "change": 0, "pct": 0, "color": "#777"}
+            return {"name": name, "price": 0, "change": 0, "pct": 0, "color": "#777", "sign": ""}
         latest = data[-1]
         prev = data[-2] if len(data) > 1 else latest
         

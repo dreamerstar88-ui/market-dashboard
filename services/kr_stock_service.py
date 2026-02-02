@@ -99,31 +99,6 @@ def fetch_kr_index_history(code: str, days: int = 365) -> List[dict]:
     """
     try:
         # Backend endpoint standard: /api/v1/stocks/history/{code}
-        # Note: Backend likely handles '^' prefix if passed, or we pass clean code and backend handles it.
-        # However, for indices in Yahoo, we need '^'. 
-        # But our backend `services/kr_loader.py` (assumed) might need the caret.
-        # Let's assume we pass the raw Yahoo symbol to the backend if possible, or mapping.
-        # If the backend takes "005930", it maps to ".KS".
-        # For indices, let's try passing the full yahoo symbol if the backend supports it, 
-        # OR we modify this service to map "KOSPI" -> "^KS11".
-        
-        target_code = code
-        if code == "KOSPI": target_code = "KS11" 
-        elif code == "KOSDAQ": target_code = "KQ11" 
-        
-        url = f"http://127.0.0.1:8000/api/v1/stocks/history/{target_code}?days={days}"
-        response = requests.get(url, timeout=3)
-        
-        if response.status_code == 200:
-            data = response.json()
-            # Convert to Lightweight Charts format
-            # Backend returns: {'time': 'YYYY-MM-DD', 'open': ..., 'close': ...}
-            # LWC needs: time (string 'YYYY-MM-DD'), open, high, low, close
-            formatted = []
-            for d in data:
-                formatted.append({
-                    'time': d['time'],
-                    'open': d['open'],
                     'high': d['high'],
                     'low': d['low'],
                     'close': d['close']
