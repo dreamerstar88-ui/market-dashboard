@@ -95,15 +95,41 @@ def fetch_kr_stock(code: str, days: int = 30) -> KrStockData:
 
 def fetch_kr_index_history(code: str, days: int = 365) -> List[dict]:
     """
-    Fetch history for indices (e.g. ^KS11) formatted for Lightweight Charts (Candlesticks)
+    백엔드 API를 통해 지수 이력 데이터 조회 (실패 시 로컬 FDR 폴백)
     """
+    import requests
+    
+    target_code = code
+    if code == "KOSPI": target_code = "KS11" 
+    elif code == "KOSDAQ": target_code = "KQ11" 
+    
+    # 1. Try Backend API
+    url = f"http://127.0.0.1:8000/api/v1/stocks/history/{target_code}?days={days}"
     try:
-        # Backend endpoint standard: /api/v1/stocks/history/{code}
-                    'high': d['high'],
-                    'low': d['low'],
-                    'close': d['close']
-                })
-            return formatted
-    except Exception:
-        pass
-    return []
+        response = requests.get(url, timeout=2) # Short timeout
+        if response.status_code == 200:
+            return response.json()
+    except Exception as e:
+        print(f"Backend fetch failed: {e}")
+
+    # 2. Fallback to Direct FDR (for Streamlit Cloud)
+    try:
+        import FinanceDataReader as fdr
+        df = fdr.DataReader(target_code)
+        df = df.iloc[-days:]
+        df = df.dropna()
+        
+        history = []
+        for index, row in df.iterrows():
+            history.append({
+                "time": index.strftime("%Y-%m-%d"),
+                "open": row.get('Open', 0),
+                "high": row.get('High', 0),
+                "low": row.get('Low', 0),
+                "close": row.get('Close', 0),
+                "volume": row.get('Volume', 0)
+            })
+        return history
+    except Exception as e:
+        print(f"Fallback fetch failed: {e}")
+        return []
