@@ -19,6 +19,7 @@ class TreasuryYieldData:
     name: str
     current_value: Optional[float]
     date: Optional[str]
+    change: Optional[float]  # Added change attribute
     history: List[Tuple[str, float]]  # (date, value) pairs
     error: Optional[str] = None
 
@@ -26,14 +27,6 @@ class TreasuryYieldData:
 def fetch_fred_series(series_id: str, name: str, observations: int = 30) -> TreasuryYieldData:
     """
     FRED API에서 시계열 데이터를 조회합니다.
-
-    Args:
-        series_id: FRED 시리즈 ID (예: DGS10)
-        name: 표시용 이름
-        observations: 가져올 데이터 개수
-
-    Returns:
-        TreasuryYieldData: 현재값 및 히스토리
     """
     api_key = os.getenv("FRED_API_KEY")
     if not api_key:
@@ -42,6 +35,7 @@ def fetch_fred_series(series_id: str, name: str, observations: int = 30) -> Trea
             name=name,
             current_value=None,
             date=None,
+            change=None,
             history=[],
             error="FRED_API_KEY가 .env 파일에 설정되지 않았습니다."
         )
@@ -81,12 +75,19 @@ def fetch_fred_series(series_id: str, name: str, observations: int = 30) -> Trea
                 name=name,
                 current_value=None,
                 date=None,
+                change=None,
                 history=[],
                 error="데이터를 찾을 수 없습니다."
             )
 
         # Most recent value (sorted desc, so first item)
         current_date, current_value = valid_obs[0]
+        
+        # Calculate change (vs previous valid observation)
+        change = 0.0
+        if len(valid_obs) > 1:
+            prev_value = valid_obs[1][1]
+            change = current_value - prev_value
         
         # Reverse for chronological order in history
         history = list(reversed(valid_obs))
@@ -96,6 +97,7 @@ def fetch_fred_series(series_id: str, name: str, observations: int = 30) -> Trea
             name=name,
             current_value=current_value,
             date=current_date,
+            change=change,
             history=history,
         )
 
@@ -105,6 +107,7 @@ def fetch_fred_series(series_id: str, name: str, observations: int = 30) -> Trea
             name=name,
             current_value=None,
             date=None,
+            change=None,
             history=[],
             error=f"네트워크 오류: {e}"
         )
@@ -114,6 +117,7 @@ def fetch_fred_series(series_id: str, name: str, observations: int = 30) -> Trea
             name=name,
             current_value=None,
             date=None,
+            change=None,
             history=[],
             error=f"오류: {e}"
         )

@@ -166,7 +166,8 @@ class TranslationService:
             return titles
             
         count = len(titles)
-        prompt = f"Translate to Korean. Return JSON list. Input: {json.dumps(titles, ensure_ascii=False)}"
+        # Prompt Engineering for Strict Korean Only
+        prompt = f"Translate these headlines to Korean. Return a flat JSON list of strings. Do not include original English text. Input: {json.dumps(titles, ensure_ascii=False)}"
 
         # Models to try in order (Custom Config: gemini-2.0-flash is standard)
         models = ["gemini-2.0-flash", "gemini-1.5-flash"]

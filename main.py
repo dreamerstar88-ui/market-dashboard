@@ -18,8 +18,12 @@ from services.data_service import log_market_snapshot, load_journal, append_jour
 from services.ai_service import generate_market_insight
 from services.fred_service import get_treasury_yields
 from services.favorites_service import load_favorites, add_favorite, remove_favorite
+from services.kr_stock_service import (
+    get_kr_stock_name,
+    fetch_kr_stock,
+    fetch_kr_index_history
+)
 from services.kr_favorites_service import load_kr_favorites, add_kr_favorite, remove_kr_favorite
-from services.kr_stock_service import fetch_kr_stock, get_kr_stock_name
 from services.news_service import get_translated_economic_events, get_translated_market_news
 from services.commodity_service import get_all_commodities
 from services.fear_greed_service import get_fear_greed_index
@@ -27,67 +31,43 @@ from services.index_service import get_us_indices, get_kr_indices
 from config.settings import APP_TITLE, APP_ICON
 
 # ============================================================
+# ============================================================
 # Page Config
 # ============================================================
 st.set_page_config(page_title=APP_TITLE, page_icon=APP_ICON, layout="wide", initial_sidebar_state="collapsed")
-st.caption("🚀 v17.2 Mobile Patch Updated")
+st.caption("🚀 v17.3 Real-time Patch Updated")
 
+# Use slightly different CSS to accommodate widgets
 st.markdown("""
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <style>
         .block-container {padding: 0.5rem;}
         header, footer {visibility: hidden;}
-        button[data-baseweb="tab"] {font-size: 0.8rem !important; padding: 0.4rem !important;}
-        .stMetric {background: rgba(30,30,30,0.5); border-radius: 8px; padding: 0.5rem;}
-        
-        /* Fluid Grid Layout System (Smart Responsive) */
-        .fluid-grid-container {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 12px;
-            justify-content: space-between;
-            width: 100%;
-        }
-        .index-card {
-            background: linear-gradient(135deg, #1a1a2e, #16213e);
-            border-radius: 12px;
-            padding: 14px;
-            text-align: center;
-            /* Flex Magic: Grow=1, Shrink=1, Basis=150px (Minimum readable width) */
-            flex: 1 1 150px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
-            transition: transform 0.2s;
-        }
-        .index-card:hover {
-            transform: translateY(-2px);
-        }
-        .index-name {font-size: 12px; color: #aaa; margin-bottom: 4px;}
-        .index-price {
-            font-size: clamp(16px, 4vw, 20px); /* Smart scaling font */
-            font-weight: bold; 
-            color: #fff;
-        }
-        .index-change-up {font-size: 14px; color: #00ff88;}
-        .index-change-down {font-size: 14px; color: #ff4444;}
+        /* Widget containers */
+        iframe {margin-bottom: 0px !important;}
     </style>
 """, unsafe_allow_html=True)
 
 # ============================================================
-# Sidebar Configuration (Bypass for Secret issues)
+# State Management (Fix Favorites)
+# ============================================================
+if "us_symbol" not in st.session_state:
+    st.session_state["us_symbol"] = "NASDAQ:NVDA"
+    
+if "kr_symbol" not in st.session_state:
+    st.session_state["kr_symbol"] = "005930"
+
+# ============================================================
+# Sidebar Configuration
 # ============================================================
 with st.sidebar:
     st.header("⚙️ 서비스 설정")
     manual_gemini_key = st.text_input(
         "Gemini API Key (Bypass)", 
         value=st.session_state.get("manual_gemini_key", ""), 
-        type="password",
-        help="클라우드 Secrets 인식이 안 될 경우 여기에 직접 키를 입력하세요."
+        type="password"
     )
     if manual_gemini_key:
         st.session_state["manual_gemini_key"] = manual_gemini_key
-        st.success("✅ 수동 키가 적용되었습니다.")
 
 # ============================================================
 # Top Bar: F&G + Ticker Tape
@@ -115,15 +95,9 @@ with col_tape:
     TradingViewWidget.render_ticker_tape(locale="kr")
 
 # ============================================================
-# Sidebar
+# Sidebar Actions
 # ============================================================
 with st.sidebar:
-    st.header("🤖 AI 어드바이저")
-    if st.button("📡 AI 분석", use_container_width=True):
-        with st.spinner("분석 중..."):
-            kp = get_kimchi_premium()
-            insight = generate_market_insight(kp.premium_percent if not kp.error else 0, kp.usd_krw_rate if not kp.error else 1400, load_journal())
-            st.success(insight)
     st.divider()
     st.header("📝 투자 일지")
     new_entry = st.text_area("메모", height=80)
@@ -139,47 +113,36 @@ tabs = st.tabs(["🇺🇸 미국주식", "🇰🇷 한국주식", "💱 환율/�
 
 # --- Tab 1: US Stocks ---
 with tabs[0]:
-    # Major US Indices (Yahoo Finance API)
-    st.subheader("📊 미국 주요 지수")
+    st.subheader("📊 미국 주요 지수 (실시간)")
     
-    with st.spinner("지수 로딩..."):
-        us_indices = get_us_indices()
-    
+    # Replace Static Grid with TradingView Mini Charts
     cols = st.columns(3)
-    icons = ["📈", "📊", "📉"]
-    
-    # HTML Grid for Responsive Layout (Force 2 columns on mobile)
-    html_content = '<div class="fluid-grid-container">'
-    
-    for i, idx in enumerate(us_indices):
-        if not idx.error:
-            change_color = "#00ff88" if idx.change_percent >= 0 else "#ff4444"
-            change_sign = "+" if idx.change_percent >= 0 else ""
-            html_content += f"""
-<div class="index-card">
-    <div class="index-name">{icons[i]} {idx.name}</div>
-    <div class="index-price">{idx.current_price:,.2f}</div>
-    <div style="color:{change_color};">{change_sign}{idx.change_percent:.2f}%</div>
-</div>
-"""
-        else:
-            html_content += f'<div class="index-card" style="color:orange;">{idx.name}<br>Error</div>'
-            
-    html_content += '</div>'
-    st.markdown(html_content, unsafe_allow_html=True)
+    indices = [
+        ("S&P 500", "FOREXCOM:SPXUSD"), 
+        ("Nasdaq 100", "FOREXCOM:NSXUSD"), 
+        ("Dow 30", "FOREXCOM:DJI")
+    ]
+    for i, (name, sym) in enumerate(indices):
+        with cols[i]:
+            st.caption(name)
+            TradingViewWidget.render_commodity_mini_chart(sym, height=180, locale="kr")
     
     st.divider()
     
+    # Favorites Logic
     favorites = load_favorites()
-    
     st.caption("⭐ 즐겨찾기")
-    cols = st.columns(min(len(favorites), 6))
-    selected = None
+    
+    # Dynamic Columns for Buttons
+    f_cols = st.columns(min(len(favorites), 6) if favorites else 1)
+    
     for i, t in enumerate(favorites):
         name = t.split(":")[-1] if ":" in t else t
-        if cols[i % len(cols)].button(name, key=f"us_fav_{t}", use_container_width=True):
-            selected = t
-    
+        # If clicked, update session state and rerun
+        if f_cols[i % len(f_cols)].button(name, key=f"us_fav_{t}", use_container_width=True):
+            st.session_state["us_symbol"] = t
+            st.rerun()
+            
     with st.expander("⚙️ 즐겨찾기 관리"):
         c1, c2 = st.columns(2)
         with c1:
@@ -194,53 +157,117 @@ with tabs[0]:
                 st.rerun()
     
     st.divider()
-    symbol = st.text_input("🔍 티커 검색", value=selected or "NASDAQ:NVDA", placeholder="NASDAQ:AAPL", key="us_search").upper()
     
-    TradingViewWidget.render_advanced_chart(symbol, height=400, locale="kr")
+    # Search input linked to Session State
+    def on_us_search_change():
+        st.session_state["us_symbol"] = st.session_state.us_search_input.upper()
+
+    symbol = st.text_input(
+        "🔍 티커 검색", 
+        value=st.session_state["us_symbol"], 
+        key="us_search_input",
+        on_change=on_us_search_change
+    ).upper()
+    
+    TradingViewWidget.render_advanced_chart(symbol, height=500, locale="kr")
     st.caption(f"📊 {symbol} 기술적 분석")
     TradingViewWidget.render_technical_analysis(symbol, height=350, locale="kr")
 
 # --- Tab 2: Korean Stocks ---
+# --- Tab 2: Korean Stocks ---
 with tabs[1]:
-    # KOSPI & KOSDAQ Indices (Yahoo Finance API)
+    # KOSPI & KOSDAQ Indices (Unified Data Source: FDR via Backend)
     st.subheader("📊 한국 주요 지수")
     
-    with st.spinner("지수 로딩..."):
-        kr_indices = get_kr_indices()
+    with st.spinner("지수 데이터 통합 로딩 중..."):
+        # Fetch History directly (Unified for Cards & Charts)
+        kospi_data = fetch_kr_index_history("KOSPI", days=365)
+        kosdaq_data = fetch_kr_index_history("KOSDAQ", days=365)
     
-    # HTML Grid for Responsive Layout (Force 2 columns on mobile)
-    html_content = '<div class="fluid-grid-container">'
+    # helper to process info from history
+    def get_index_info(data, name):
+        if not data:
+            return {"name": name, "price": 0, "change": 0, "pct": 0, "color": "#777"}
+        latest = data[-1]
+        prev = data[-2] if len(data) > 1 else latest
+        
+        price = latest['close']
+        change = price - prev['close']
+        pct = (change / prev['close']) * 100
+        color = "#00ff88" if change >= 0 else "#ff4444"
+        sign = "+" if change >= 0 else ""
+        return {"name": name, "price": price, "change": change, "pct": pct, "color": color, "sign": sign}
+
+    k_info = get_index_info(kospi_data, "🇰🇷 KOSPI")
+    kq_info = get_index_info(kosdaq_data, "🇰🇷 KOSDAQ")
     
-    for i, idx in enumerate(kr_indices):
-        if not idx.error:
-            change_color = "#00ff88" if idx.change_percent >= 0 else "#ff4444"
-            change_sign = "+" if idx.change_percent >= 0 else ""
-            html_content += f"""
+    html_content = """
+<style>
+.index-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+    margin-bottom: 20px;
+}
+.index-card {
+    flex: 1;
+    min-width: 140px;
+    background-color: #262730;
+    border-radius: 10px;
+    padding: 15px;
+    text-align: center;
+    border: 1px solid #3b3c46;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+}
+.index-name {
+    font-size: 14px;
+    color: #b0b0b0;
+    margin-bottom: 5px;
+}
+.index-price {
+    font-size: 20px;
+    font-weight: bold;
+    color: #ffffff;
+}
+</style>
+<div class="index-grid">
+"""
+    # Render Cards
+    for info in [k_info, kq_info]:
+        html_content += f"""
 <div class="index-card">
-    <div class="index-name">🇰🇷 {idx.name}</div>
-    <div class="index-price">{idx.current_price:,.2f}</div>
-    <div style="color:{change_color};">{change_sign}{idx.change_percent:.2f}%</div>
+    <div class="index-name">{info['name']}</div>
+    <div class="index-price">{info['price']:,.2f}</div>
+    <div style="color:{info['color']}; font-size: 14px; font-weight: bold;">{info['sign']}{info['pct']:.2f}%</div>
 </div>
 """
-        else:
-             html_content += f'<div class="index-card" style="color:orange;">{idx.name}<br>Error</div>'
-             
     html_content += '</div>'
-    st.markdown(html_content, unsafe_allow_html=True)
     
+    st.markdown(html_content, unsafe_allow_html=True)
+
+    # Charts (Same Data)
+    st.caption("📉 차트 (FinanceData 실시간 반영)")
+    k_chart_cols = st.columns(2)
+    
+    with k_chart_cols[0]:
+        TradingViewWidget.render_lightweight_chart(kospi_data, "KOSPI", height=300)
+        
+    with k_chart_cols[1]:
+        TradingViewWidget.render_lightweight_chart(kosdaq_data, "KOSDAQ", height=300)
+
     st.divider()
-    st.info("💡 TradingView 무료 위젯이 한국 개별주식을 지원하지 않아 **Yahoo Finance** 데이터로 표시합니다.")
     
     kr_favorites = load_kr_favorites()
-    
     st.caption("⭐ 즐겨찾기")
-    cols = st.columns(min(len(kr_favorites), 5))
-    kr_selected = None
+    
+    kf_cols = st.columns(min(len(kr_favorites), 6) if kr_favorites else 1)
+    
     for i, t in enumerate(kr_favorites):
         name = get_kr_stock_name(t)
-        if cols[i % len(cols)].button(name, key=f"kr_fav_{t}", use_container_width=True):
-            kr_selected = t
-    
+        if kf_cols[i % len(kf_cols)].button(name, key=f"kr_fav_{t}", use_container_width=True):
+            st.session_state["kr_symbol"] = t
+            st.rerun()
+            
     with st.expander("⚙️ 즐겨찾기 관리"):
         c1, c2 = st.columns(2)
         with c1:
@@ -255,90 +282,86 @@ with tabs[1]:
                 st.rerun()
     
     st.divider()
-    kr_code = st.text_input("🔍 종목코드", value=kr_selected.replace("KRX:", "") if kr_selected else "005930", placeholder="005930", key="kr_search")
     
-    kr_period = st.selectbox("📅 기간", ["30일", "60일", "90일", "180일", "1년"], index=0, key="kr_period")
-    kr_days = {"30일": 30, "60일": 60, "90일": 90, "180일": 180, "1년": 365}[kr_period]
+    def on_kr_search_change():
+        st.session_state["kr_symbol"] = st.session_state.kr_search_input
+
+    kr_code_full = st.text_input(
+        "🔍 종목코드", 
+        value=st.session_state["kr_symbol"], 
+        key="kr_search_input",
+        on_change=on_kr_search_change
+    )
+    kr_code = kr_code_full.replace("KRX:", "") 
     
     with st.spinner(f"{get_kr_stock_name(kr_code)} 데이터 로딩..."):
-        kr_data = fetch_kr_stock(kr_code, days=kr_days)
+        kr_data = fetch_kr_stock(kr_code, days=365)
     
     if kr_data.error:
-        st.error(f"오류: {kr_data.error}")
+        st.error(f"오류: {kr_data.error} (종목코드를 확인하세요)")
     else:
-        col1, col2 = st.columns(2)
-        col1.metric(f"📈 {kr_data.name}", f"₩{kr_data.current_price:,.0f}" if kr_data.current_price else "N/A")
-        if kr_data.change_percent:
-            col2.metric("등락률", f"{kr_data.change_percent:+.2f}%", delta=f"{kr_data.change_percent:+.2f}%")
-        
-        if kr_data.history:
-            fig = go.Figure()
-            fig.add_trace(go.Scatter(
-                x=[h[0] for h in kr_data.history],
-                y=[h[1] for h in kr_data.history],
-                mode="lines",
-                line=dict(color="#00CED1", width=2),
-                name=kr_data.name,
-            ))
-            fig.update_layout(
-                title=f"{kr_data.name} ({kr_code}) - {kr_period}",
-                template="plotly_dark",
-                height=350,
-                xaxis_title="날짜",
-                yaxis_title="가격 (원)",
+        col1, col2 = st.columns([1, 3])
+        with col1:
+            st.metric(
+                f"📈 {kr_data.name}", 
+                f"₩{kr_data.current_price:,.0f}" if kr_data.current_price else "N/A",
+                f"{kr_data.change_percent:+.2f}%" if kr_data.change_percent else "0%"
             )
-            st.plotly_chart(fig, use_container_width=True)
+        with col2:
+            st.caption("최근 1년 주가 추이 (Fast Engine)")
+            if kr_data.history:
+                fig = go.Figure()
+                fig.add_trace(go.Scatter(
+                    x=[h[0] for h in kr_data.history],
+                    y=[h[1] for h in kr_data.history],
+                    mode="lines",
+                    line=dict(color="#00CED1", width=2),
+                    name=kr_data.name,
+                    fill='tozeroy',
+                    fillcolor='rgba(0, 206, 209, 0.1)'
+                ))
+                fig.update_layout(
+                    template="plotly_dark",
+                    height=300,
+                    margin=dict(l=0,r=0,t=0,b=0),
+                    paper_bgcolor='rgba(0,0,0,0)',
+                    plot_bgcolor='rgba(0,0,0,0)',
+                    xaxis=dict(showgrid=False),
+                    yaxis=dict(showgrid=True, gridcolor='rgba(128,128,128,0.2)'),
+                )
+                st.plotly_chart(fig, use_container_width=True)
 
 # --- Tab 3: Forex & Commodities ---
 with tabs[2]:
-    st.subheader("💱 원화 기준 환율")
+    st.subheader("💱 실시간 환율 & 원자재")
     cols = st.columns(4)
-    for i, (label, sym) in enumerate([("🇺🇸 USD", "FX_IDC:USDKRW"), ("🇯🇵 JPY", "FX_IDC:JPYKRW"), ("🇪🇺 EUR", "FX_IDC:EURKRW"), ("🇨🇳 CNY", "FX_IDC:CNYKRW")]):
+    # Restore full list: USD, JPY, EUR, CNY
+    forex_list = [
+        ("🇺🇸 USD/KRW", "FX_IDC:USDKRW"), 
+        ("🇯🇵 JPY/KRW", "FX_IDC:JPYKRW"), 
+        ("🇪🇺 EUR/KRW", "FX_IDC:EURKRW"), 
+        ("🇨🇳 CNY/KRW", "FX_IDC:CNYKRW")
+    ]
+    for i, (label, sym) in enumerate(forex_list):
         with cols[i]:
             st.caption(label)
-            TradingViewWidget.render_commodity_mini_chart(sym, height=160, locale="kr")
-    
-    st.divider()
-    st.subheader("🛢️ 원자재 현황")
-    
-    period = st.selectbox("📅 기간", ["30일", "60일", "90일", "180일", "1년"], index=0, key="commodity_period")
-    period_days = {"30일": 30, "60일": 60, "90일": 90, "180일": 180, "1년": 365}[period]
-    
-    with st.spinner("로딩..."):
-        commodities = get_all_commodities(days=period_days)
-    
-    cols = st.columns(4)
-    icons = {"gold": "🥇", "oil": "⛽", "copper": "🔌", "natgas": "🔥"}
-    
-    # HTML Grid for Commodities
-    html_content = '<div class="fluid-grid-container">'
-    
-    for i, (key, data) in enumerate(commodities.items()):
-        if not data.error:
-            change_color = "#00ff88" if (data.change_percent or 0) >= 0 else "#ff4444"
-            change_sign = "+" if (data.change_percent or 0) >= 0 else ""
-            change_txt = f"{change_sign}{data.change_percent:.2f}%" if data.change_percent else "-"
+            TradingViewWidget.render_commodity_mini_chart(sym, height=180, locale="kr")
             
-            html_content += f"""
-<div class="index-card">
-    <div class="index-name">{icons.get(key)} {data.name}</div>
-    <div class="index-price">${data.current_price:,.2f}</div>
-    <div style="color:{change_color};">{change_txt}</div>
-</div>
-"""
-    html_content += '</div>'
-    st.markdown(html_content, unsafe_allow_html=True)
-    
     st.divider()
-    cols = st.columns(2)
-    colors = {"gold": "#FFD700", "oil": "#8B4513", "copper": "#B87333", "natgas": "#00CED1"}
-    for i, (key, data) in enumerate(commodities.items()):
-        with cols[i % 2]:
-            if data.history:
-                fig = go.Figure()
-                fig.add_trace(go.Scatter(x=[h[0] for h in data.history], y=[h[1] for h in data.history], mode="lines", line=dict(color=colors.get(key), width=2)))
-                fig.update_layout(title=f"{icons.get(key)} {data.name}", template="plotly_dark", height=180, margin=dict(l=0, r=0, t=30, b=0), showlegend=False)
-                st.plotly_chart(fig, use_container_width=True)
+    
+    # Enable horizontal scrolling for commodities if many
+    c_cols = st.columns(4)
+    # Use Unrestricted CFDs for Widgets
+    comm_list = [
+        ("🥇 Gold", "TVC:GOLD"), 
+        ("⛽ Oil", "TVC:USOIL"), 
+        ("🔌 Copper (CFD)", "CAPITALCOM:COPPER"),       # CFD Proxy
+        ("🔥 NatGas (CFD)", "CAPITALCOM:NATURALGAS")    # CFD Proxy
+    ]
+    for i, (label, sym) in enumerate(comm_list):
+        with c_cols[i]:
+            st.caption(label)
+            TradingViewWidget.render_commodity_mini_chart(sym, height=180, locale="kr")
 
 # --- Tab 4: Macro ---
 with tabs[3]:
@@ -348,107 +371,108 @@ with tabs[3]:
     cnn = fg_data["cnn"]
     crypto = fg_data["crypto"]
     
+    # Restore Visuals
     with cols[0]:
         if not cnn.error:
-            color = "#FF4444" if cnn.value <= 25 else "#FF8800" if cnn.value <= 45 else "#FFFF00" if cnn.value <= 55 else "#88FF00" if cnn.value <= 75 else "#00FF00"
+            # Simple Gauge Color Logic
+            val = int(cnn.value)
+            color = "#FF4444" if val <= 25 else "#FF8800" if val <= 45 else "#FFFF00" if val <= 55 else "#88FF00" if val <= 75 else "#00FF00"
             st.markdown(f"""
-            <div style="text-align:center; padding:15px; background:linear-gradient(135deg, #1a1a2e, #16213e); border-radius:10px;">
-                <div style="font-size:12px; color:#888;">📈 {cnn.source}</div>
-                <div style="font-size:48px; font-weight:bold; color:{color};">{cnn.value}</div>
-                <div style="font-size:14px;">{cnn.classification}</div>
+            <div style="text-align:center; padding:15px; background:linear-gradient(135deg, #1a1a2e, #16213e); border-radius:10px; border: 1px solid {color};">
+                <div style="font-size:14px; color:#ccc;">CNN Market Mood</div>
+                <div style="font-size:42px; font-weight:bold; color:{color};">{val}</div>
+                <div style="font-size:16px; color:#fff;">{cnn.classification}</div>
             </div>
             """, unsafe_allow_html=True)
+        else:
+            st.error("CNN Data Error")
     
     with cols[1]:
         if not crypto.error:
-            color = "#FF4444" if crypto.value <= 25 else "#FF8800" if crypto.value <= 45 else "#FFFF00" if crypto.value <= 55 else "#88FF00" if crypto.value <= 75 else "#00FF00"
+            val = int(crypto.value)
+            color = "#FF4444" if val <= 25 else "#FF8800" if val <= 45 else "#FFFF00" if val <= 55 else "#88FF00" if val <= 75 else "#00FF00"
             st.markdown(f"""
-            <div style="text-align:center; padding:15px; background:linear-gradient(135deg, #1a1a2e, #16213e); border-radius:10px;">
-                <div style="font-size:12px; color:#888;">₿ {crypto.source}</div>
-                <div style="font-size:48px; font-weight:bold; color:{color};">{crypto.value}</div>
-                <div style="font-size:14px;">{crypto.classification}</div>
+            <div style="text-align:center; padding:15px; background:linear-gradient(135deg, #1a1a2e, #16213e); border-radius:10px; border: 1px solid {color};">
+                <div style="font-size:14px; color:#ccc;">Crypto Fear & Greed</div>
+                <div style="font-size:42px; font-weight:bold; color:{color};">{val}</div>
+                <div style="font-size:16px; color:#fff;">{crypto.classification}</div>
             </div>
             """, unsafe_allow_html=True)
-    
-    st.info("💡 0-25: 극도의 공포, 75-100: 극도의 탐욕")
+        else:
+            st.error("Crypto Data Error")
     
     st.divider()
-    st.subheader("📈 미국 국채 금리")
+    st.subheader("🇺🇸 미국 국채 금리")
     
+    # Revert to FRED Data (No 'Restricted Symbol' errors)
     fred_key = os.getenv("FRED_API_KEY")
     if fred_key:
-        with st.spinner("로딩..."):
+        with st.spinner("FRED 데이터 로딩..."):
             yields = get_treasury_yields()
         
-        # HTML Grid for Treasury Yields
-        html_content = '<div class="fluid-grid-container">'
-        
+        y_cols = st.columns(3)
         for i, (sid, label) in enumerate(zip(["DGS2", "DGS10", "DGS30"], ["2년물", "10년물", "30년물"])):
             d = yields[sid]
-            if not d.error:
-                html_content += f"""
-<div class="index-card">
-    <div class="index-name">{label}</div>
-    <div class="index-price">{d.current_value:.2f}%</div>
-    <div style="color:#888;">(국채)</div>
-</div>
-"""
-        html_content += '</div>'
-        st.markdown(html_content, unsafe_allow_html=True)
+            with y_cols[i]:
+                if not d.error:
+                    change_color = "#00ff88" if d.change >= 0 else "#ff4444"
+                    st.markdown(f"""
+                    <div class="index-card">
+                        <div class="index-name">{label}</div>
+                        <div class="index-price">{d.current_value:.2f}%</div>
+                        <div style="color:{change_color};">{d.change:+.2f}bp</div>
+                    </div>
+                    """, unsafe_allow_html=True)
+                else:
+                    st.warning(f"{label} 로딩 실패")
         
+        # Restore Graph
+        st.write("") 
         fig = go.Figure()
         for sid, name, color in [("DGS2", "2Y", "#00CED1"), ("DGS10", "10Y", "#FFD700"), ("DGS30", "30Y", "#FF6347")]:
             d = yields[sid]
             if d.history:
                 fig.add_trace(go.Scatter(x=[h[0] for h in d.history], y=[h[1] for h in d.history], mode="lines", name=name, line=dict(color=color, width=2)))
-        fig.update_layout(template="plotly_dark", height=300, margin=dict(l=0, r=0, t=10, b=0), legend=dict(orientation="h", y=1.1))
+        fig.update_layout(template="plotly_dark", height=350, margin=dict(l=0, r=0, t=10, b=0), legend=dict(orientation="h", y=1.1))
         st.plotly_chart(fig, use_container_width=True)
 
 # --- Tab 5: Crypto ---
 with tabs[4]:
-    st.subheader("₿ 크립토 & 김치프리미엄")
-    
-    kp = get_kimchi_premium()
-    if not kp.error:
-        c1, c2, c3 = st.columns(3)
-        c1.metric("BTC (글로벌)", f"${kp.btc_global_usd:,.0f}")
-        c2.metric("BTC (국내)", f"₩{kp.btc_korea_krw:,.0f}")
-        c3.metric("🌶️ 김프", f"{kp.premium_percent:.2f}%", delta=f"{kp.premium_percent:.2f}%", delta_color="inverse" if kp.premium_percent > 0 else "normal")
-        log_market_snapshot(kp.btc_global_usd, kp.btc_korea_krw, kp.premium_percent, kp.usd_krw_rate)
-    
-    st.divider()
-    cols = st.columns(3)
-    for i, (label, sym) in enumerate([("₿ BTC", "BINANCE:BTCUSDT"), ("Ξ ETH", "BINANCE:ETHUSDT"), ("📊 USDT.D", "CRYPTOCAP:USDT.D")]):
-        with cols[i]:
+    st.subheader("₿ 실시간 크립토")
+    c_cols = st.columns(3)
+    for i, (label, sym) in enumerate([("₿ BTC/USDT", "BINANCE:BTCUSDT"), ("Ξ ETH/USDT", "BINANCE:ETHUSDT"), ("🐕 DOGE/USDT", "BINANCE:DOGEUSDT")]):
+        with c_cols[i]:
             st.caption(label)
             TradingViewWidget.render_commodity_mini_chart(sym, height=180, locale="kr")
     
     st.divider()
-    crypto_sym = st.text_input("🔍 코인 검색", value="BINANCE:BTCUSDT", key="crypto_search").upper()
-    TradingViewWidget.render_advanced_chart(crypto_sym, height=400, locale="kr")
+    kp = get_kimchi_premium()
+    if not kp.error:
+         st.metric("🌶️ 김치 프리미엄", f"{kp.premium_percent:.2f}%", f"{kp.btc_korea_krw:,.0f} KRW (Upbit) / ${kp.btc_global_usd:,.0f} (Binance)")
+
+    st.divider()
+    
+    # Restore Advanced Chart for Crypto
+    def on_crypto_search_change():
+        st.session_state["crypto_symbol"] = st.session_state.crypto_search_input
+
+    if "crypto_symbol" not in st.session_state: st.session_state["crypto_symbol"] = "BINANCE:BTCUSDT"
+
+    crypto_sym = st.text_input("🔍 코인 검색", value=st.session_state["crypto_symbol"], key="crypto_search_input", on_change=on_crypto_search_change).upper()
+    TradingViewWidget.render_advanced_chart(crypto_sym, height=500, locale="kr")
 
 # --- Tab 6: Market Intel ---
 with tabs[5]:
-    st.subheader("📅 경제 캘린더")
-    
-    selected_date = st.date_input("📆 날짜 선택", value=datetime.now(), key="calendar_date_intel")
-    selected_datetime = datetime.combine(selected_date, datetime.min.time())
-    
-    st.markdown(get_translated_economic_events(selected_datetime))
-    
-    st.divider()
-    st.subheader("📰 시장 뉴스")
-    st.caption("📌 중요도: 거시경제 > 지수 > 개별주식 순으로 정렬")
-    
-    use_gemini = st.checkbox("🔄 Gemini 한국어 번역", value=True, key="news_gemini_checkbox")
-    
-    if use_gemini:
-        with st.spinner("뉴스 수집 및 번역 중..."):
-            st.markdown(get_translated_market_news())
-    else:
-        TradingViewWidget.render_timeline(height=350, locale="kr")
-    
-    st.markdown("---")
     c1, c2 = st.columns(2)
-    c1.link_button("📊 SaveTicker", "https://www.saveticker.com/app/news")
-    c2.link_button("🇰🇷 Investing.com", "https://kr.investing.com/economic-calendar/")
+    
+    with c1:
+        st.subheader("📅 경제 캘린더 (실시간)")
+        TradingViewWidget.render_economic_calendar(height=600, locale="kr")
+        
+    with c2:
+        st.subheader("📰 시장 뉴스 (AI 번역)")
+        use_gemini = st.checkbox("Gemini 번역 활성화", value=True)
+        if use_gemini:
+            st.markdown(get_translated_market_news())
+        else:
+            TradingViewWidget.render_timeline(height=600, locale="kr")

@@ -49,60 +49,86 @@ def get_kr_stock_name(code: str) -> str:
 
 def fetch_kr_stock(code: str, days: int = 30) -> KrStockData:
     """
-    Yahoo Finance로 한국 주식 데이터 조회
-    
-    Args:
-        code: 종목코드 (예: 005930, KRX:005930)
-        days: 조회 기간
+    Accelerated Data Fetching via Localhost Backend
     """
     # 코드 정리
     clean_code = code.replace("KRX:", "").replace(".KS", "").replace(".KQ", "")
     
-    # Yahoo Finance 심볼 변환
+    # 이름 조회 (기존 로직 활용)
+    name = clean_code
     if clean_code in KR_STOCK_INFO:
-        yahoo_symbol, name = KR_STOCK_INFO[clean_code]
-    else:
-        yahoo_symbol = f"{clean_code}.KS"  # 기본적으로 KOSPI 가정
-        name = clean_code
-    
+        _, name = KR_STOCK_INFO[clean_code]
+
     try:
-        end_date = int(datetime.now().timestamp())
-        start_date = int((datetime.now() - timedelta(days=days)).timestamp())
+        # Call Fast Backend
+        url = f"http://127.0.0.1:8000/api/v1/stocks/history/{clean_code}?days={days}"
+        response = requests.get(url, timeout=2) # Fast timeout
         
-        url = f"https://query1.finance.yahoo.com/v8/finance/chart/{yahoo_symbol}"
-        params = {"period1": start_date, "period2": end_date, "interval": "1d"}
-        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
-        
-        response = requests.get(url, params=params, headers=headers, timeout=10)
-        response.raise_for_status()
-        data = response.json()
-        
-        result = data.get("chart", {}).get("result", [])
-        if not result:
-            return KrStockData(clean_code, name, None, None, [], error="데이터 없음")
-        
-        meta = result[0].get("meta", {})
-        indicators = result[0].get("indicators", {}).get("quote", [{}])[0]
-        timestamps = result[0].get("timestamp", [])
-        closes = indicators.get("close", [])
-        
-        current_price = meta.get("regularMarketPrice")
-        prev_close = meta.get("previousClose", current_price)
-        change_percent = ((current_price - prev_close) / prev_close * 100) if prev_close and current_price else None
-        
-        history = []
-        for ts, close in zip(timestamps, closes):
-            if close is not None:
-                date_str = datetime.fromtimestamp(ts).strftime("%Y-%m-%d")
-                history.append((date_str, close))
-        
-        return KrStockData(
-            code=clean_code,
-            name=name,
-            current_price=current_price,
-            change_percent=change_percent,
-            history=history,
-        )
-        
+        if response.status_code == 200:
+            data = response.json()
+            if not data:
+                return KrStockData(clean_code, name, None, None, [], error="데이터 없음")
+            
+            # Process Data
+            latest = data[-1]
+            prev = data[-2] if len(data) > 1 else latest
+            
+            # Structure matches existing Dataclass
+            history_tuples = [(d['time'], d['close']) for d in data]
+            
+            current_price = latest['close']
+            change_percent = ((latest['close'] - prev['close']) / prev['close']) * 100
+            
+            return KrStockData(
+                code=clean_code,
+                name=name,
+                current_price=current_price,
+                change_percent=change_percent,
+                history=history_tuples,
+            )
+        else:
+            return KrStockData(clean_code, name, None, None, [], error=f"API Error {response.status_code}")
+            
     except Exception as e:
         return KrStockData(clean_code, name, None, None, [], error=str(e))
+
+
+def fetch_kr_index_history(code: str, days: int = 365) -> List[dict]:
+    """
+    Fetch history for indices (e.g. ^KS11) formatted for Lightweight Charts (Candlesticks)
+    """
+    try:
+        # Backend endpoint standard: /api/v1/stocks/history/{code}
+        # Note: Backend likely handles '^' prefix if passed, or we pass clean code and backend handles it.
+        # However, for indices in Yahoo, we need '^'. 
+        # But our backend `services/kr_loader.py` (assumed) might need the caret.
+        # Let's assume we pass the raw Yahoo symbol to the backend if possible, or mapping.
+        # If the backend takes "005930", it maps to ".KS".
+        # For indices, let's try passing the full yahoo symbol if the backend supports it, 
+        # OR we modify this service to map "KOSPI" -> "^KS11".
+        
+        target_code = code
+        if code == "KOSPI": target_code = "KS11" 
+        elif code == "KOSDAQ": target_code = "KQ11" 
+        
+        url = f"http://127.0.0.1:8000/api/v1/stocks/history/{target_code}?days={days}"
+        response = requests.get(url, timeout=3)
+        
+        if response.status_code == 200:
+            data = response.json()
+            # Convert to Lightweight Charts format
+            # Backend returns: {'time': 'YYYY-MM-DD', 'open': ..., 'close': ...}
+            # LWC needs: time (string 'YYYY-MM-DD'), open, high, low, close
+            formatted = []
+            for d in data:
+                formatted.append({
+                    'time': d['time'],
+                    'open': d['open'],
+                    'high': d['high'],
+                    'low': d['low'],
+                    'close': d['close']
+                })
+            return formatted
+    except Exception:
+        pass
+    return []
