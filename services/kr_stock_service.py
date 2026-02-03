@@ -62,7 +62,7 @@ def fetch_kr_stock(code: str, days: int = 30) -> KrStockData:
     try:
         # Call Fast Backend
         url = f"http://127.0.0.1:8000/api/v1/stocks/history/{clean_code}?days={days}"
-        response = requests.get(url, timeout=2) # Fast timeout
+        response = requests.get(url, timeout=5)  # 안정성을 위해 5초로 증가
         
         if response.status_code == 200:
             data = response.json()
@@ -89,8 +89,12 @@ def fetch_kr_stock(code: str, days: int = 30) -> KrStockData:
         else:
             return KrStockData(clean_code, name, None, None, [], error=f"API Error {response.status_code}")
             
+    except requests.exceptions.Timeout:
+        return KrStockData(clean_code, name, None, None, [], error="백엔드 서버 응답 시간 초과")
+    except requests.exceptions.ConnectionError:
+        return KrStockData(clean_code, name, None, None, [], error="백엔드 서버 연결 실패 (서버가 실행 중인지 확인)")
     except Exception as e:
-        return KrStockData(clean_code, name, None, None, [], error=str(e))
+        return KrStockData(clean_code, name, None, None, [], error=f"오류: {str(e)[:50]}")
 
 
 def fetch_kr_index_history(code: str, days: int = 365) -> List[dict]:
@@ -106,7 +110,7 @@ def fetch_kr_index_history(code: str, days: int = 365) -> List[dict]:
     # 1. Try Backend API
     url = f"http://127.0.0.1:8000/api/v1/stocks/history/{target_code}?days={days}"
     try:
-        response = requests.get(url, timeout=2) # Short timeout
+        response = requests.get(url, timeout=5)  # 안정성을 위해 5초로 증가
         if response.status_code == 200:
             return response.json()
     except Exception as e:

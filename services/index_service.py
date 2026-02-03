@@ -53,17 +53,23 @@ def fetch_index(symbol: str, name: str) -> IndexData:
                     current_price = adjclose[-1]
             
             if current_price:
-                if previous_close is None:
-                    # 전일 종가가 없으면 indicators에서 첫 번째 값 시도
-                    closes = result[0].get("indicators", {}).get("quote", [{}])[0].get("close", [])
-                    if len(closes) > 1:
-                        previous_close = closes[0]
+                # Yahoo Finance가 제공하는 변동률 직접 사용 (더 정확)
+                change = meta.get("regularMarketChange")
+                change_percent = meta.get("regularMarketChangePercent")
                 
-                change = 0
-                change_percent = 0
-                if previous_close:
-                    change = current_price - previous_close
-                    change_percent = (change / previous_close) * 100
+                # 폴백: 직접 계산
+                if change is None or change_percent is None:
+                    if previous_close is None:
+                        closes = result[0].get("indicators", {}).get("quote", [{}])[0].get("close", [])
+                        if len(closes) > 1:
+                            previous_close = closes[0]
+                    
+                    if previous_close:
+                        change = current_price - previous_close
+                        change_percent = (change / previous_close) * 100
+                    else:
+                        change = 0
+                        change_percent = 0
                 
                 return IndexData(
                     symbol=symbol,
@@ -90,9 +96,54 @@ def get_us_indices() -> List[IndexData]:
 
 
 def get_kr_indices() -> List[IndexData]:
-    """한국 주요 지수 (KOSPI, KOSDAQ)"""
+    """한국 주요 지수 (KOSPI, KOSDAQ) - 5일 데이터로 변동률 계산"""
     indices = [
         ("^KS11", "KOSPI"),
         ("^KQ11", "KOSDAQ"),
     ]
-    return [fetch_index(sym, name) for sym, name in indices]
+    results = []
+    
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+        "Accept": "application/json",
+    }
+    
+    for symbol, name in indices:
+        try:
+            # 5일 데이터로 전일 종가 확보
+            url = f"https://query2.finance.yahoo.com/v8/finance/chart/{symbol}?interval=1d&range=5d"
+            response = requests.get(url, headers=headers, timeout=10)
+            response.raise_for_status()
+            
+            data = response.json()
+            result = data.get("chart", {}).get("result", [])
+            
+            if result:
+                meta = result[0].get("meta", {})
+                current_price = meta.get("regularMarketPrice")
+                closes = result[0].get("indicators", {}).get("quote", [{}])[0].get("close", [])
+                
+                # 유효한 close 값만 필터링
+                valid_closes = [c for c in closes if c is not None]
+                
+                if current_price and len(valid_closes) >= 2:
+                    previous_close = valid_closes[-2]  # 전일 종가
+                    change = current_price - previous_close
+                    change_percent = (change / previous_close) * 100
+                    
+                    results.append(IndexData(
+                        symbol=symbol,
+                        name=name,
+                        current_price=current_price,
+                        change=change,
+                        change_percent=change_percent
+                    ))
+                else:
+                    results.append(IndexData(symbol=symbol, name=name, current_price=current_price, change=0, change_percent=0))
+            else:
+                results.append(IndexData(symbol=symbol, name=name, error="데이터 없음"))
+                
+        except Exception as e:
+            results.append(IndexData(symbol=symbol, name=name, error=f"오류: {str(e)[:30]}"))
+    
+    return results
