@@ -4,3 +4,5 @@ plotly>=5.18.0
 requests>=2.31.0
 google-genai>=0.2.0
 python-dotenv>=1.0.0
+finance-datareader>=0.9.60
+yfinance>=0.2.36
