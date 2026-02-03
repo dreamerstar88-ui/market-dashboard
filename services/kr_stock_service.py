@@ -49,7 +49,7 @@ def get_kr_stock_name(code: str) -> str:
 
 def fetch_kr_stock(code: str, days: int = 30) -> KrStockData:
     """
-    Accelerated Data Fetching via Localhost Backend
+    Accelerated Data Fetching via Localhost Backend with FDR Fallback
     """
     # 코드 정리
     clean_code = code.replace("KRX:", "").replace(".KS", "").replace(".KQ", "")
@@ -59,42 +59,56 @@ def fetch_kr_stock(code: str, days: int = 30) -> KrStockData:
     if clean_code in KR_STOCK_INFO:
         _, name = KR_STOCK_INFO[clean_code]
 
+    # 1차 시도: Backend API
     try:
-        # Call Fast Backend
         url = f"http://127.0.0.1:8000/api/v1/stocks/history/{clean_code}?days={days}"
-        response = requests.get(url, timeout=5)  # 안정성을 위해 5초로 증가
+        response = requests.get(url, timeout=2)  # 빠른 실패를 위해 2초
         
         if response.status_code == 200:
             data = response.json()
-            if not data:
-                return KrStockData(clean_code, name, None, None, [], error="데이터 없음")
+            if data:
+                latest = data[-1]
+                prev = data[-2] if len(data) > 1 else latest
+                history_tuples = [(d['time'], d['close']) for d in data]
+                current_price = latest['close']
+                change_percent = ((latest['close'] - prev['close']) / prev['close']) * 100
+                
+                return KrStockData(
+                    code=clean_code,
+                    name=name,
+                    current_price=current_price,
+                    change_percent=change_percent,
+                    history=history_tuples,
+                )
+    except Exception:
+        pass  # 폴백으로 진행
+
+    # 2차 시도: FinanceDataReader 직접 호출 (호스팅 환경용)
+    try:
+        import FinanceDataReader as fdr
+        from datetime import datetime, timedelta
+        
+        start_date = (datetime.now() - timedelta(days=days)).strftime("%Y-%m-%d")
+        df = fdr.DataReader(clean_code, start_date)
+        
+        if df is not None and len(df) > 0:
+            df = df.dropna()
+            history_tuples = [(idx.strftime("%Y-%m-%d"), row['Close']) for idx, row in df.iterrows()]
             
-            # Process Data
-            latest = data[-1]
-            prev = data[-2] if len(data) > 1 else latest
-            
-            # Structure matches existing Dataclass
-            history_tuples = [(d['time'], d['close']) for d in data]
-            
-            current_price = latest['close']
-            change_percent = ((latest['close'] - prev['close']) / prev['close']) * 100
+            latest = df.iloc[-1]
+            prev = df.iloc[-2] if len(df) > 1 else latest
+            current_price = float(latest['Close'])
+            change_percent = ((latest['Close'] - prev['Close']) / prev['Close']) * 100
             
             return KrStockData(
                 code=clean_code,
                 name=name,
                 current_price=current_price,
-                change_percent=change_percent,
+                change_percent=float(change_percent),
                 history=history_tuples,
             )
-        else:
-            return KrStockData(clean_code, name, None, None, [], error=f"API Error {response.status_code}")
-            
-    except requests.exceptions.Timeout:
-        return KrStockData(clean_code, name, None, None, [], error="백엔드 서버 응답 시간 초과")
-    except requests.exceptions.ConnectionError:
-        return KrStockData(clean_code, name, None, None, [], error="백엔드 서버 연결 실패 (서버가 실행 중인지 확인)")
     except Exception as e:
-        return KrStockData(clean_code, name, None, None, [], error=f"오류: {str(e)[:50]}")
+        return KrStockData(clean_code, name, None, None, [], error=f"데이터 로딩 실패: {str(e)[:30]}")
 
 
 def fetch_kr_index_history(code: str, days: int = 365) -> List[dict]:
