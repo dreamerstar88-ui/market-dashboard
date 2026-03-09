@@ -135,8 +135,10 @@ def fetch_kr_index_history(code: str, days: int = 365) -> List[dict]:
     # 2. Try Naver SISE JSON API (가장 안정적임)
     try:
         import ast
+        # 데이터 범위를 2000일(약 5.5년)으로 확대
         end_date = datetime.now().strftime("%Y%m%d")
-        url = f"https://api.finance.naver.com/siseJson.naver?symbol={target_code}&requestType=1&startTime=20200101&endTime={end_date}&timeframe=day"
+        # startTime을 충분히 과거(2018년)로 설정하여 장기 데이터 확보
+        url = f"https://api.finance.naver.com/siseJson.naver?symbol={target_code}&requestType=1&startTime=20180101&endTime={end_date}&timeframe=day"
         
         headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
@@ -156,7 +158,8 @@ def fetch_kr_index_history(code: str, days: int = 365) -> List[dict]:
             if isinstance(raw_data, list) and len(raw_data) > 1:
                 rows = raw_data[1:]
                 history = []
-                for row in rows[-days:]:
+                # 요청한 days 만큼 혹은 전체 데이터 슬라이싱
+                for row in rows[-days if len(rows) > days else 0:]:
                     try:
                         dt_str = f"{row[0][:4]}-{row[0][4:6]}-{row[0][6:8]}"
                         history.append({

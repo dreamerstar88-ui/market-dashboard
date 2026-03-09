@@ -196,12 +196,7 @@ class TradingViewWidget:
     @staticmethod
     def render_lightweight_chart(data: list, title: str, height: int = 300) -> None:
         """
-        Custom Data를 사용해 TradingView Lightweight Charts 렌더링
-        Args:
-            data: [{'time': 'YYYY-MM-DD', 'open': 10, ...}] (Candlestick)
-                  또는 [{'time': 'YYYY-MM-DD', 'value': 10}] (Area)
-            title: 차트 제목
-            height: 높이
+        Custom Data를 사용해 TradingView Lightweight Charts 렌더링 (Candle + Volume)
         """
         import uuid
         import json
@@ -211,20 +206,39 @@ class TradingViewWidget:
             return
 
         is_candle = 'open' in data[0]
-        series_type = 'addCandlestickSeries' if is_candle else 'addAreaSeries'
         chart_id = f"chart_{uuid.uuid4().hex}"
         
-        # Color & Series Config
-        layout_cfg = {"background": {"type": "solid", "color": "#131722"}, "textColor": "#d1d4dc"}
-        grid_cfg = {"vertLines": {"color": "rgba(42, 46, 57, 0.1)"}, "horzLines": {"color": "rgba(42, 46, 57, 0.1)"}}
+        # Color & Config (Prober-like)
+        layout_cfg = {
+            "background": {"type": "solid", "color": "#131722"},
+            "textColor": "#d1d4dc",
+            "fontSize": 12,
+        }
+        grid_cfg = {
+            "vertLines": {"color": "rgba(42, 46, 57, 0.2)", "style": 1},
+            "horzLines": {"color": "rgba(42, 46, 57, 0.2)", "style": 1},
+        }
         
-        if is_candle:
-            series_cfg = {"upColor": "#26a69a", "downColor": "#ef5350", "borderVisible": False, "wickUpColor": "#26a69a", "wickDownColor": "#ef5350"}
-        else:
-            series_cfg = {"topColor": "rgba(41, 98, 255, 0.5)", "bottomColor": "rgba(41, 98, 255, 0.0)", "lineColor": "#2962ff", "lineWidth": 2}
-
-        # Data JSON
-        data_json = json.dumps(data)
+        # Series Data Preparation
+        main_data = []
+        volume_data = []
+        
+        for d in data:
+            time_val = d['time']
+            if is_candle:
+                main_data.append({
+                    "time": time_val,
+                    "open": d['open'], "high": d['high'], "low": d['low'], "close": d['close']
+                })
+                # Volume data with color logic
+                vol_color = "rgba(38, 166, 154, 0.5)" if d['close'] >= d['open'] else "rgba(239, 83, 80, 0.5)"
+                volume_data.append({
+                    "time": time_val,
+                    "value": d.get('volume', 0),
+                    "color": vol_color
+                })
+            else:
+                main_data.append({"time": time_val, "value": d['value']})
 
         html_code = f"""
         <!DOCTYPE html>
@@ -235,9 +249,9 @@ class TradingViewWidget:
                 body {{ margin: 0; padding: 0; background-color: #131722; overflow: hidden; }}
                 #{chart_id} {{ width: 100%; height: {height}px; position: relative; }}
                 .watermark {{
-                    position: absolute; top: 8px; left: 8px; font-size: 16px;
-                    color: rgba(255, 255, 255, 0.1); font-family: sans-serif;
-                    z-index: 5; pointer-events: none; font-weight: bold;
+                    position: absolute; top: 10px; left: 10px; font-size: 14px;
+                    color: rgba(255, 255, 255, 0.15); font-family: sans-serif;
+                    z-index: 5; pointer-events: none;
                 }}
             </style>
             <script src="https://unpkg.com/lightweight-charts@4.1.1/dist/lightweight-charts.standalone.production.js"></script>
@@ -247,7 +261,6 @@ class TradingViewWidget:
             <script>
             (function() {{
                 const container = document.getElementById('{chart_id}');
-                const chartData = {data_json};
                 
                 function init() {{
                     if (typeof LightweightCharts === 'undefined') {{
@@ -261,26 +274,51 @@ class TradingViewWidget:
                             height: {height},
                             layout: {json.dumps(layout_cfg)},
                             grid: {json.dumps(grid_cfg)},
-                            timeScale: {{ borderColor: "rgba(197, 203, 206, 0.5)" }},
-                            rightPriceScale: {{ borderColor: "rgba(197, 203, 206, 0.5)" }}
+                            crosshair: {{ mode: 0 }},
+                            timeScale: {{ borderColor: "rgba(197, 203, 206, 0.3)", timeVisible: true }},
+                            rightPriceScale: {{ borderColor: "rgba(197, 203, 206, 0.3)" }}
                         }});
 
-                        const series = chart.{series_type}({json.dumps(series_cfg)});
-                        series.setData(chartData);
+                        // 1. Price Series
+                        let mainSeries;
+                        if ({json.dumps(is_candle)}) {{
+                            mainSeries = chart.addCandlestickSeries({{
+                                upColor: "#26a69a", downColor: "#ef5350",
+                                borderVisible: false, wickUpColor: "#26a69a", wickDownColor: "#ef5350"
+                            }});
+                        }} else {{
+                            mainSeries = chart.addAreaSeries({{
+                                topColor: "rgba(41, 121, 255, 0.3)", bottomColor: "rgba(41, 121, 255, 0)",
+                                lineColor: "#2979ff", lineWidth: 2
+                            }});
+                        }}
+                        mainSeries.setData({json.dumps(main_data)});
+
+                        // 2. Volume Series
+                        if ({json.dumps(is_candle)}) {{
+                            const volumeSeries = chart.addHistogramSeries({{
+                                color: "#26a69a",
+                                priceFormat: {{ type: "volume" }},
+                                priceScaleId: "volume_pane",
+                            }});
+                            volumeSeries.setData({json.dumps(volume_data)});
+                            
+                            chart.priceScale("volume_pane").applyOptions({{
+                                scaleMargins: {{ top: 0.8, bottom: 0 }},
+                                visible: false
+                            }});
+                        }}
+
                         chart.timeScale().fitContent();
 
-                        // Dynamic Resize
                         const ro = new ResizeObserver(entries => {{
                             for (let entry of entries) {{
-                                if (entry.contentRect.width > 0) {{
-                                    chart.applyOptions({{ width: entry.contentRect.width }});
-                                    chart.timeScale().fitContent();
-                                }}
+                                if (entry.contentRect.width > 0) chart.applyOptions({{ width: entry.contentRect.width }});
                             }}
                         }});
                         ro.observe(container);
                     }} catch (e) {{
-                        container.innerHTML = `<div style="color:#ef5350;padding:10px;font-family:sans-serif;">Error: ${{e.message}}</div>`;
+                        container.innerHTML = `<div style="color:#ef5350;padding:10px;font-family:sans-serif;font-size:12px;">Error: ${{e.message}}</div>`;
                     }}
                 }}
                 

@@ -177,66 +177,70 @@ with tabs[0]:
 with tabs[1]:
     st.subheader("📊 한국 주요 지수")
     
-    # 차트용 데이터 로딩 (Plotly Candlestick)
-    with st.spinner("차트 데이터 로딩 중..."):
-        kospi_data = fetch_kr_index_history("KOSPI", days=365)
-        kosdaq_data = fetch_kr_index_history("KOSDAQ", days=365)
+    # 기간 선택 UI
+    period_options = {"1M": 30, "3M": 90, "1Y": 365, "3Y": 1095, "5Y": 2000}
+    if "kr_period" not in st.session_state:
+        st.session_state.kr_period = "1Y"
     
-    # 지수 정보 추출
+    col_p, _ = st.columns([1, 3])
+    with col_p:
+        selected_p = st.segmented_control(
+            "📅 조회 기간", 
+            options=list(period_options.keys()), 
+            default=st.session_state.kr_period,
+            key="kr_period_selector"
+        )
+        if selected_p:
+            st.session_state.kr_period = selected_p
+
+    # 데이터 로딩
+    days_to_fetch = period_options.get(st.session_state.kr_period, 365)
+    with st.spinner(f"KOSPI/KOSDAQ 데이터 로딩 중... ({st.session_state.kr_period})"):
+        kospi_data = fetch_kr_index_history("KOSPI", days=days_to_fetch)
+        kosdaq_data = fetch_kr_index_history("KOSDAQ", days=days_to_fetch)
+    
+    # 지수 정보 추출 및 카드 렌더링
     def get_index_info(data, name):
         if not data:
             return {"name": name, "price": 0, "pct": 0, "color": "#777", "sign": ""}
         latest = data[-1]
         prev = data[-2] if len(data) > 1 else latest
         price = latest['close']
-        pct = ((price - prev['close']) / prev['close']) * 100
-        color = "#00ff88" if pct >= 0 else "#ff4444"
-        sign = "+" if pct >= 0 else ""
+        change = price - prev['close']
+        pct = (change / prev['close']) * 100
+        color = "#00ff88" if change >= 0 else "#ff4444"
+        sign = "+" if change >= 0 else ""
         return {"name": name, "price": price, "pct": pct, "color": color, "sign": sign}
     
     k_info = get_index_info(kospi_data, "KOSPI")
     kq_info = get_index_info(kosdaq_data, "KOSDAQ")
     
-    # 클릭 가능한 지수 카드 (네이버 금융 링크)
     st.markdown(f"""
-    <style>
-    .kr-index-grid {{ display: flex; gap: 15px; margin-bottom: 20px; }}
-    .kr-index-card {{
-        flex: 1; padding: 15px; border-radius: 10px; text-align: center;
-        background: linear-gradient(135deg, #1a1a2e, #16213e);
-        border: 1px solid #3b3c46; text-decoration: none; display: block;
-        transition: transform 0.2s, box-shadow 0.2s;
-    }}
-    .kr-index-card:hover {{ transform: translateY(-3px); box-shadow: 0 6px 20px rgba(0,0,0,0.4); }}
-    .kr-idx-name {{ font-size: 14px; color: #b0b0b0; margin-bottom: 5px; }}
-    .kr-idx-price {{ font-size: 22px; font-weight: bold; color: #fff; }}
-    .kr-idx-link {{ font-size: 11px; color: #6b7280; margin-top: 8px; }}
-    </style>
     <div class="kr-index-grid">
         <a href="https://finance.naver.com/sise/sise_index.naver?code=KOSPI" target="_blank" class="kr-index-card">
             <div class="kr-idx-name">🇰🇷 {k_info['name']}</div>
             <div class="kr-idx-price">{k_info['price']:,.2f}</div>
             <div style="color:{k_info['color']}; font-size: 14px; font-weight: bold;">{k_info['sign']}{k_info['pct']:.2f}%</div>
-            <div class="kr-idx-link">실시간 보기 →</div>
+            <div class="kr-idx-link">실시간 상세 정보 보기 →</div>
         </a>
         <a href="https://finance.naver.com/sise/sise_index.naver?code=KOSDAQ" target="_blank" class="kr-index-card">
             <div class="kr-idx-name">🇰🇷 {kq_info['name']}</div>
             <div class="kr-idx-price">{kq_info['price']:,.2f}</div>
             <div style="color:{kq_info['color']}; font-size: 14px; font-weight: bold;">{kq_info['sign']}{kq_info['pct']:.2f}%</div>
-            <div class="kr-idx-link">실시간 보기 →</div>
+            <div class="kr-idx-link">실시간 상세 정보 보기 →</div>
         </a>
     </div>
     """, unsafe_allow_html=True)
 
-    # Charts (Lightweight Charts - 클라이언트 사이드 고성능 렌더링)
-    st.caption("📉 차트 (Lightweight Charts 고성능 렌더링)")
+    # 차트 (Lightweight Charts + Volume)
+    st.caption(f"📉 시장 지수 추이 ({st.session_state.kr_period}) - Prober-like High Performance View")
     k_chart_cols = st.columns(2)
     
     with k_chart_cols[0]:
-        TradingViewWidget.render_lightweight_chart(data=kospi_data, title="KOSPI", height=280)
+        TradingViewWidget.render_lightweight_chart(data=kospi_data, title="KOSPI", height=320)
         
     with k_chart_cols[1]:
-        TradingViewWidget.render_lightweight_chart(data=kosdaq_data, title="KOSDAQ", height=280)
+        TradingViewWidget.render_lightweight_chart(data=kosdaq_data, title="KOSDAQ", height=320)
 
     st.divider()
     
