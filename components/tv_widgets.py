@@ -268,7 +268,7 @@ class TradingViewWidget:
                     font-weight: bold;
                 }}
             </style>
-            <script src="https://cdnjs.cloudflare.com/ajax/libs/lightweight-charts/4.1.1/lightweight-charts.standalone.production.min.js" onload="initChart()"></script>
+            <script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js" onload="initChart()"></script>
         </head>
         <body>
             <div id="{chart_id}">
