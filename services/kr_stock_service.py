@@ -113,41 +113,87 @@ def fetch_kr_stock(code: str, days: int = 30) -> KrStockData:
 
 def fetch_kr_index_history(code: str, days: int = 365) -> List[dict]:
     """
-    백엔드 API를 통해 지수 이력 데이터 조회 (실패 시 로컬 FDR 폴백)
+    백엔드 API를 통해 지수 이력 데이터 조회 (실패 시 네이버 금융 API 폴백)
     """
     import requests
+    import json
+    from datetime import datetime
     
     target_code = code
-    if code == "KOSPI": target_code = "KS11" 
-    elif code == "KOSDAQ": target_code = "KQ11" 
+    if code == "KOSPI": target_code = "KOSPI" 
+    elif code == "KOSDAQ": target_code = "KOSDAQ" 
     
-    # 1. Try Backend API
+    # 1. Try Backend API (localhost)
     url = f"http://127.0.0.1:8000/api/v1/stocks/history/{target_code}?days={days}"
     try:
-        response = requests.get(url, timeout=5)  # 안정성을 위해 5초로 증가
+        response = requests.get(url, timeout=3)
         if response.status_code == 200:
             return response.json()
-    except Exception as e:
-        print(f"Backend fetch failed: {e}")
+    except Exception:
+        pass
 
-    # 2. Fallback to Direct FDR (for Streamlit Cloud)
+    # 2. Try Naver SISE JSON API (가장 안정적임)
+    try:
+        # 네이버 금융 비공식 API 활용 (KOSPI, KOSDAQ)
+        # requestType=1: 일봉, timeframe=day
+        import ast
+        end_date = datetime.now().strftime("%Y%m%d")
+        url = f"https://api.finance.naver.com/siseJson.naver?symbol={target_code}&requestType=1&startTime=20200101&endTime={end_date}&timeframe=day"
+        
+        response = requests.get(url, timeout=5)
+        if response.status_code == 200:
+            # 네이버 응답은 브래킷 형식이 섞인 텍스트이며 홀따옴표(')를 포함할 수 있어 json.loads 대신 ast.literal_eval 사용
+            text = response.text.strip()
+            # NaN 제거
+            cleaned_text = text.replace("NaN", "0")
+            # [['날짜', '시가', ...], ["20230101", 100, ...]] 형태
+            try:
+                raw_data = ast.literal_eval(cleaned_text)
+            except Exception:
+                # 위 방식이 실패할 경우 따옴표 변환 시도
+                import json
+                raw_data = json.loads(cleaned_text.replace("'", '"'))
+            
+            headers = raw_data[0] # ['날짜', '시가', '고가', '저가', '종가', '거래량', '외국인소진율']
+            rows = raw_data[1:]
+            
+            history = []
+            for row in rows[-days:]:
+                # 날짜 포맷 변환 (20230102 -> 2023-01-02)
+                dt_str = f"{row[0][:4]}-{row[0][4:6]}-{row[0][6:8]}"
+                history.append({
+                    "time": dt_str,
+                    "open": float(row[1]),
+                    "high": float(row[2]),
+                    "low": float(row[3]),
+                    "close": float(row[4]),
+                    "volume": int(row[5])
+                })
+            if history:
+                return history
+    except Exception as e:
+        print(f"Naver fetch failed: {e}")
+
+    # 3. Last Resort: FinanceDataReader (지수 데이터는 현재 KRX Logout 이슈로 불안정함)
     try:
         import FinanceDataReader as fdr
-        df = fdr.DataReader(target_code)
-        df = df.iloc[-days:]
-        df = df.dropna()
-        
-        history = []
-        for index, row in df.iterrows():
-            history.append({
-                "time": index.strftime("%Y-%m-%d"),
-                "open": row.get('Open', 0),
-                "high": row.get('High', 0),
-                "low": row.get('Low', 0),
-                "close": row.get('Close', 0),
-                "volume": row.get('Volume', 0)
-            })
-        return history
+        # FDR은 지수가 아닌 종목 코드(KS11, KQ11)를 인식함
+        fdr_code = "KS11" if code == "KOSPI" else "KQ11"
+        df = fdr.DataReader(fdr_code)
+        if df is not None and not df.empty:
+            df = df.iloc[-days:].dropna()
+            history = []
+            for index, row in df.iterrows():
+                history.append({
+                    "time": index.strftime("%Y-%m-%d"),
+                    "open": float(row.get('Open', 0)),
+                    "high": float(row.get('High', 0)),
+                    "low": float(row.get('Low', 0)),
+                    "close": float(row.get('Close', 0)),
+                    "volume": int(row.get('Volume', 0))
+                })
+            return history
     except Exception as e:
-        print(f"Fallback fetch failed: {e}")
-        return []
+        print(f"FDR fallback failed: {e}")
+        
+    return []
