@@ -228,48 +228,15 @@ with tabs[1]:
     </div>
     """, unsafe_allow_html=True)
 
-    # Charts (Plotly - 안정적인 렌더링)
-    st.caption("📉 차트 (FinanceData 실시간 반영)")
+    # Charts (Lightweight Charts - 클라이언트 사이드 고성능 렌더링)
+    st.caption("📉 차트 (Lightweight Charts 고성능 렌더링)")
     k_chart_cols = st.columns(2)
     
-    def render_index_chart(data, title):
-        """Plotly 기반 지수 차트 렌더링"""
-        if not data or len(data) == 0:
-            st.warning(f"{title} 데이터 없음")
-            return
-            
-        fig = go.Figure()
-        
-        # Candlestick Chart
-        fig.add_trace(go.Candlestick(
-            x=[d['time'] for d in data],
-            open=[d['open'] for d in data],
-            high=[d['high'] for d in data],
-            low=[d['low'] for d in data],
-            close=[d['close'] for d in data],
-            name=title,
-            increasing_line_color='#26a69a',
-            decreasing_line_color='#ef5350'
-        ))
-        
-        fig.update_layout(
-            template="plotly_dark",
-            height=280,
-            margin=dict(l=0, r=0, t=30, b=0),
-            paper_bgcolor='rgba(0,0,0,0)',
-            plot_bgcolor='rgba(19,23,34,1)',
-            xaxis=dict(showgrid=False, rangeslider=dict(visible=False)),
-            yaxis=dict(showgrid=True, gridcolor='rgba(42,46,57,0.5)'),
-            title=dict(text=title, font=dict(size=14, color='#d1d4dc'), x=0.5),
-            showlegend=False
-        )
-        st.plotly_chart(fig, use_container_width=True)
-    
     with k_chart_cols[0]:
-        render_index_chart(kospi_data, "KOSPI")
+        TradingViewWidget.render_lightweight_chart(data=kospi_data, title="KOSPI", height=280)
         
     with k_chart_cols[1]:
-        render_index_chart(kosdaq_data, "KOSDAQ")
+        TradingViewWidget.render_lightweight_chart(data=kosdaq_data, title="KOSDAQ", height=280)
 
     st.divider()
     
@@ -324,28 +291,11 @@ with tabs[1]:
                 f"{kr_data.change_percent:+.2f}%" if kr_data.change_percent else "0%"
             )
         with col2:
-            st.caption("최근 1년 주가 추이 (Fast Engine)")
+            st.caption("최근 1년 주가 추이 (Lightweight Charts)")
             if kr_data.history:
-                fig = go.Figure()
-                fig.add_trace(go.Scatter(
-                    x=[h[0] for h in kr_data.history],
-                    y=[h[1] for h in kr_data.history],
-                    mode="lines",
-                    line=dict(color="#00CED1", width=2),
-                    name=kr_data.name,
-                    fill='tozeroy',
-                    fillcolor='rgba(0, 206, 209, 0.1)'
-                ))
-                fig.update_layout(
-                    template="plotly_dark",
-                    height=300,
-                    margin=dict(l=0,r=0,t=0,b=0),
-                    paper_bgcolor='rgba(0,0,0,0)',
-                    plot_bgcolor='rgba(0,0,0,0)',
-                    xaxis=dict(showgrid=False),
-                    yaxis=dict(showgrid=True, gridcolor='rgba(128,128,128,0.2)'),
-                )
-                st.plotly_chart(fig, use_container_width=True)
+                # Convert list of tuples (time, value) to lightweight chart area series format
+                lw_data = [{"time": h[0], "value": h[1]} for h in kr_data.history]
+                TradingViewWidget.render_lightweight_chart(data=lw_data, title=kr_data.name, height=300)
 
 # --- Tab 3: Forex & Commodities ---
 with tabs[2]:
