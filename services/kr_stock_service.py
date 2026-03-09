@@ -126,7 +126,7 @@ def fetch_kr_index_history(code: str, days: int = 365) -> List[dict]:
     # 1. Try Backend API (localhost)
     url = f"http://127.0.0.1:8000/api/v1/stocks/history/{target_code}?days={days}"
     try:
-        response = requests.get(url, timeout=3)
+        response = requests.get(url, timeout=2)
         if response.status_code == 200:
             return response.json()
     except Exception:
@@ -134,50 +134,48 @@ def fetch_kr_index_history(code: str, days: int = 365) -> List[dict]:
 
     # 2. Try Naver SISE JSON API (가장 안정적임)
     try:
-        # 네이버 금융 비공식 API 활용 (KOSPI, KOSDAQ)
-        # requestType=1: 일봉, timeframe=day
         import ast
         end_date = datetime.now().strftime("%Y%m%d")
         url = f"https://api.finance.naver.com/siseJson.naver?symbol={target_code}&requestType=1&startTime=20200101&endTime={end_date}&timeframe=day"
         
-        response = requests.get(url, timeout=5)
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+            'Referer': 'https://finance.naver.com/'
+        }
+        
+        response = requests.get(url, headers=headers, timeout=5)
         if response.status_code == 200:
-            # 네이버 응답은 브래킷 형식이 섞인 텍스트이며 홀따옴표(')를 포함할 수 있어 json.loads 대신 ast.literal_eval 사용
             text = response.text.strip()
-            # NaN 제거
             cleaned_text = text.replace("NaN", "0")
-            # [['날짜', '시가', ...], ["20230101", 100, ...]] 형태
+            
             try:
                 raw_data = ast.literal_eval(cleaned_text)
             except Exception:
-                # 위 방식이 실패할 경우 따옴표 변환 시도
-                import json
                 raw_data = json.loads(cleaned_text.replace("'", '"'))
             
-            headers = raw_data[0] # ['날짜', '시가', '고가', '저가', '종가', '거래량', '외국인소진율']
-            rows = raw_data[1:]
-            
-            history = []
-            for row in rows[-days:]:
-                # 날짜 포맷 변환 (20230102 -> 2023-01-02)
-                dt_str = f"{row[0][:4]}-{row[0][4:6]}-{row[0][6:8]}"
-                history.append({
-                    "time": dt_str,
-                    "open": float(row[1]),
-                    "high": float(row[2]),
-                    "low": float(row[3]),
-                    "close": float(row[4]),
-                    "volume": int(row[5])
-                })
-            if history:
-                return history
+            if isinstance(raw_data, list) and len(raw_data) > 1:
+                rows = raw_data[1:]
+                history = []
+                for row in rows[-days:]:
+                    try:
+                        dt_str = f"{row[0][:4]}-{row[0][4:6]}-{row[0][6:8]}"
+                        history.append({
+                            "time": dt_str,
+                            "open": float(row[1]),
+                            "high": float(row[2]),
+                            "low": float(row[3]),
+                            "close": float(row[4]),
+                            "volume": int(row[5])
+                        })
+                    except: continue
+                if history:
+                    return history
     except Exception as e:
-        print(f"Naver fetch failed: {e}")
+        print(f"Naver Error ({code}): {e}")
 
-    # 3. Last Resort: FinanceDataReader (지수 데이터는 현재 KRX Logout 이슈로 불안정함)
+    # 3. Last Resort: FinanceDataReader
     try:
         import FinanceDataReader as fdr
-        # FDR은 지수가 아닌 종목 코드(KS11, KQ11)를 인식함
         fdr_code = "KS11" if code == "KOSPI" else "KQ11"
         df = fdr.DataReader(fdr_code)
         if df is not None and not df.empty:
@@ -194,6 +192,6 @@ def fetch_kr_index_history(code: str, days: int = 365) -> List[dict]:
                 })
             return history
     except Exception as e:
-        print(f"FDR fallback failed: {e}")
+        print(f"FDR Error ({code}): {e}")
         
     return []
