@@ -15,7 +15,7 @@ class KrStockData:
     name: str
     current_price: Optional[float]
     change_percent: Optional[float]
-    history: List[Tuple[str, float]]
+    history: List[dict]
     error: Optional[str] = None
 
 
@@ -69,7 +69,14 @@ def fetch_kr_stock(code: str, days: int = 30) -> KrStockData:
             if data:
                 latest = data[-1]
                 prev = data[-2] if len(data) > 1 else latest
-                history_tuples = [(d['time'], d['close']) for d in data]
+                history_dicts = [{
+                    "time": d['time'],
+                    "open": float(d.get('open', d['close'])),
+                    "high": float(d.get('high', d['close'])),
+                    "low": float(d.get('low', d['close'])),
+                    "close": float(d['close']),
+                    "volume": int(d.get('volume', 0))
+                } for d in data]
                 current_price = latest['close']
                 change_percent = ((latest['close'] - prev['close']) / prev['close']) * 100
                 
@@ -78,7 +85,7 @@ def fetch_kr_stock(code: str, days: int = 30) -> KrStockData:
                     name=name,
                     current_price=current_price,
                     change_percent=change_percent,
-                    history=history_tuples,
+                    history=history_dicts,
                 )
     except Exception:
         pass  # 폴백으로 진행
@@ -93,7 +100,14 @@ def fetch_kr_stock(code: str, days: int = 30) -> KrStockData:
         
         if df is not None and len(df) > 0:
             df = df.dropna()
-            history_tuples = [(idx.strftime("%Y-%m-%d"), row['Close']) for idx, row in df.iterrows()]
+            history_dicts = [{
+                "time": idx.strftime("%Y-%m-%d"),
+                "open": float(row.get('Open', row['Close'])),
+                "high": float(row.get('High', row['Close'])),
+                "low": float(row.get('Low', row['Close'])),
+                "close": float(row['Close']),
+                "volume": int(row.get('Volume', 0))
+            } for idx, row in df.iterrows()]
             
             latest = df.iloc[-1]
             prev = df.iloc[-2] if len(df) > 1 else latest
@@ -105,7 +119,7 @@ def fetch_kr_stock(code: str, days: int = 30) -> KrStockData:
                 name=name,
                 current_price=current_price,
                 change_percent=float(change_percent),
-                history=history_tuples,
+                history=history_dicts,
             )
     except Exception as e:
         return KrStockData(clean_code, name, None, None, [], error=f"데이터 로딩 실패: {str(e)[:30]}")

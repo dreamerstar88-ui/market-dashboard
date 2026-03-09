@@ -216,6 +216,19 @@ with tabs[1]:
     kq_info = get_index_info(kosdaq_data, "KOSDAQ")
     
     st.markdown(f"""
+    <style>
+    .kr-index-grid {{ display: flex; gap: 15px; margin-bottom: 20px; }}
+    .kr-index-card {{
+        flex: 1; padding: 15px; border-radius: 10px; text-align: center;
+        background: linear-gradient(135deg, #1a1a2e, #16213e);
+        border: 1px solid #3b3c46; text-decoration: none; display: block;
+        transition: transform 0.2s, box-shadow 0.2s;
+    }}
+    .kr-index-card:hover {{ transform: translateY(-3px); box-shadow: 0 6px 20px rgba(0,0,0,0.4); }}
+    .kr-idx-name {{ font-size: 14px; color: #b0b0b0; margin-bottom: 5px; }}
+    .kr-idx-price {{ font-size: 22px; font-weight: bold; color: #fff; }}
+    .kr-idx-link {{ font-size: 11px; color: #6b7280; margin-top: 8px; }}
+    </style>
     <div class="kr-index-grid">
         <a href="https://finance.naver.com/sise/sise_index.naver?code=KOSPI" target="_blank" class="kr-index-card">
             <div class="kr-idx-name">🇰🇷 {k_info['name']}</div>
@@ -281,8 +294,26 @@ with tabs[1]:
     )
     kr_code = kr_code_full.replace("KRX:", "") 
     
-    with st.spinner(f"{get_kr_stock_name(kr_code)} 데이터 로딩..."):
-        kr_data = fetch_kr_stock(kr_code, days=365)
+    # 개별 종목 기간 선택 UI
+    stock_period_options = {"1M": 30, "3M": 90, "1Y": 365, "3Y": 1095, "5Y": 2000}
+    if "kr_stock_period" not in st.session_state:
+        st.session_state.kr_stock_period = "1Y"
+        
+    c_p1, _ = st.columns([1, 3])
+    with c_p1:
+        sel_stock_p = st.segmented_control(
+            "📅 상세 차트 기간", 
+            options=list(stock_period_options.keys()), 
+            default=st.session_state.kr_stock_period,
+            key="kr_stock_period_selector"
+        )
+        if sel_stock_p:
+            st.session_state.kr_stock_period = sel_stock_p
+            
+    stock_days_to_fetch = stock_period_options.get(st.session_state.kr_stock_period, 365)
+    
+    with st.spinner(f"{get_kr_stock_name(kr_code)} 데이터 로딩... ({st.session_state.kr_stock_period})"):
+        kr_data = fetch_kr_stock(kr_code, days=stock_days_to_fetch)
     
     if kr_data.error:
         st.error(f"오류: {kr_data.error} (종목코드를 확인하세요)")
@@ -295,11 +326,9 @@ with tabs[1]:
                 f"{kr_data.change_percent:+.2f}%" if kr_data.change_percent else "0%"
             )
         with col2:
-            st.caption("최근 1년 주가 추이 (Lightweight Charts)")
+            st.caption(f"📉 최근 주가 추이 ({st.session_state.kr_stock_period}) - Prober-like High Performance View")
             if kr_data.history:
-                # Convert list of tuples (time, value) to lightweight chart area series format
-                lw_data = [{"time": h[0], "value": h[1]} for h in kr_data.history]
-                TradingViewWidget.render_lightweight_chart(data=lw_data, title=kr_data.name, height=300)
+                TradingViewWidget.render_lightweight_chart(data=kr_data.history, title=kr_data.name, height=320)
 
 # --- Tab 3: Forex & Commodities ---
 with tabs[2]:
