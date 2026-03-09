@@ -196,107 +196,81 @@ class TradingViewWidget:
     @staticmethod
     def render_lightweight_chart(data: list, title: str, height: int = 300) -> None:
         """
-        Render a TradingView Lightweight Chart with custom data.
+        Custom Data를 사용해 TradingView Lightweight Charts 렌더링
         Args:
-            data: List of dicts, e.g., [{'time': '2023-01-01', 'value': 100}, ...] (AreaSeries)
-                  or [{'time': '2023-01-01', 'open': 10, 'high': 12, 'low': 9, 'close': 11}, ...] (CandlestickSeries)
-            title: Title of the chart
-            height: Height in pixels
+            data: [{'time': 'YYYY-MM-DD', 'open': 10, ...}] (Candlestick)
+                  또는 [{'time': 'YYYY-MM-DD', 'value': 10}] (Area)
+            title: 차트 제목
+            height: 높이
         """
+        import uuid
         import json
         
-        # Determine series type based on data keys
         if not data:
-            components.html(f"<div style='color:white'>No Data for {title}</div>", height=height)
+            components.html(f"<div style='color:#6b7280; font-family:sans-serif; padding:20px; background:#131722; height:{height}px;'>No Data for {title}</div>", height=height)
             return
 
         is_candle = 'open' in data[0]
         series_type = 'addCandlestickSeries' if is_candle else 'addAreaSeries'
-        
-        # Color configuration (Dark Theme)
-        chart_config = {
-            "layout": {
-                "background": {"type": "solid", "color": "#131722"},
-                "textColor": "#d1d4dc",
-            },
-            "grid": {
-                "vertLines": {"color": "rgba(42, 46, 57, 0.5)"},
-                "horzLines": {"color": "rgba(42, 46, 57, 0.5)"},
-            },
-            "rightPriceScale": {
-                "borderColor": "rgba(197, 203, 206, 0.8)",
-            },
-            "timeScale": {
-                "borderColor": "rgba(197, 203, 206, 0.8)",
-            },
-        }
-        
-        series_options = {}
-        if not is_candle:
-            series_options = {
-                "topColor": "rgba(41, 98, 255, 0.56)",
-                "bottomColor": "rgba(41, 98, 255, 0.04)",
-                "lineColor": "rgba(41, 98, 255, 1)",
-                "lineWidth": 2,
-            }
-        else:
-             series_options = {
-                "upColor": "#26a69a",
-                "downColor": "#ef5350",
-                "borderVisible": False,
-                "wickUpColor": "#26a69a",
-                "wickDownColor": "#ef5350",
-            }
-
-        import uuid
         chart_id = f"chart_{uuid.uuid4().hex}"
+        
+        # Color & Series Config
+        layout_cfg = {"background": {"type": "solid", "color": "#131722"}, "textColor": "#d1d4dc"}
+        grid_cfg = {"vertLines": {"color": "rgba(42, 46, 57, 0.1)"}, "horzLines": {"color": "rgba(42, 46, 57, 0.1)"}}
+        
+        if is_candle:
+            series_cfg = {"upColor": "#26a69a", "downColor": "#ef5350", "borderVisible": False, "wickUpColor": "#26a69a", "wickDownColor": "#ef5350"}
+        else:
+            series_cfg = {"topColor": "rgba(41, 98, 255, 0.5)", "bottomColor": "rgba(41, 98, 255, 0.0)", "lineColor": "#2962ff", "lineWidth": 2}
+
+        # Data JSON
+        data_json = json.dumps(data)
 
         html_code = f"""
         <!DOCTYPE html>
         <html>
         <head>
+            <meta charset="utf-8">
             <style>
-                body {{ margin: 0; padding: 0; background-color: #131722; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }}
-                #{chart_id} {{ position: relative; width: 100%; height: {height}px; }}
+                body {{ margin: 0; padding: 0; background-color: #131722; overflow: hidden; }}
+                #{chart_id} {{ width: 100%; height: {height}px; position: relative; }}
                 .watermark {{
-                    position: absolute;
-                    top: 12px;
-                    left: 12px;
-                    font-size: 24px;
-                    color: rgba(255, 255, 255, 0.1);
-                    z-index: 10;
-                    font-weight: bold;
+                    position: absolute; top: 8px; left: 8px; font-size: 16px;
+                    color: rgba(255, 255, 255, 0.1); font-family: sans-serif;
+                    z-index: 5; pointer-events: none; font-weight: bold;
                 }}
             </style>
-            <script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js" onload="initChart()"></script>
+            <script src="https://unpkg.com/lightweight-charts@4.1.1/dist/lightweight-charts.standalone.production.js"></script>
         </head>
         <body>
-            <div id="{chart_id}">
-                <div class="watermark">{title}</div>
-            </div>
+            <div id="{chart_id}"><div class="watermark">{title}</div></div>
             <script>
-                function initChart() {{
-                    // Safely initialize after library load
+            (function() {{
+                const container = document.getElementById('{chart_id}');
+                const chartData = {data_json};
+                
+                function init() {{
+                    if (typeof LightweightCharts === 'undefined') {{
+                        setTimeout(init, 50);
+                        return;
+                    }}
+                    
                     try {{
-                        const chartcontainer = document.getElementById('{chart_id}');
-                        const chart = LightweightCharts.createChart(chartcontainer, {{
-                            width: chartcontainer.clientWidth,
+                        const chart = LightweightCharts.createChart(container, {{
+                            width: container.clientWidth || 300,
                             height: {height},
-                            ...{json.dumps(chart_config)}
+                            layout: {json.dumps(layout_cfg)},
+                            grid: {json.dumps(grid_cfg)},
+                            timeScale: {{ borderColor: "rgba(197, 203, 206, 0.5)" }},
+                            rightPriceScale: {{ borderColor: "rgba(197, 203, 206, 0.5)" }}
                         }});
 
-                        const newSeries = chart.{series_type}({json.dumps(series_options)});
-                        
-                        const rawData = {json.dumps(data)};
-                        
-                        // Simple validation
-                        if (rawData && rawData.length > 0) {{
-                            newSeries.setData(rawData);
-                            chart.timeScale().fitContent();
-                        }}
+                        const series = chart.{series_type}({json.dumps(series_cfg)});
+                        series.setData(chartData);
+                        chart.timeScale().fitContent();
 
-                        // Robust Resizing using ResizeObserver
-                        const resizeObserver = new ResizeObserver(entries => {{
+                        // Dynamic Resize
+                        const ro = new ResizeObserver(entries => {{
                             for (let entry of entries) {{
                                 if (entry.contentRect.width > 0) {{
                                     chart.applyOptions({{ width: entry.contentRect.width }});
@@ -304,16 +278,15 @@ class TradingViewWidget:
                                 }}
                             }}
                         }});
-                        resizeObserver.observe(chartcontainer);
-
-                        // Initial Fit
-                        chart.timeScale().fitContent();
-
+                        ro.observe(container);
                     }} catch (e) {{
-                        console.error("LWC Error:", e);
-                        document.getElementById('{chart_id}').innerHTML = "<div style='color:red;padding:10px'>Chart Error: " + e.message + "</div>";
+                        container.innerHTML = `<div style="color:#ef5350;padding:10px;font-family:sans-serif;">Error: ${{e.message}}</div>`;
                     }}
                 }}
+                
+                if (document.readyState === 'complete') init();
+                else window.addEventListener('load', init);
+            }})();
             </script>
         </body>
         </html>

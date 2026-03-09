@@ -1,0 +1,138 @@
+import streamlit as st
+import streamlit.components.v1 as components
+import json
+import uuid
+from typing import List
+
+class TradingViewWidget:
+    """TradingView 기반 위젯 및 차트 렌더링 클래스"""
+
+    @staticmethod
+    def render_lightweight_chart(data: list, title: str, height: int = 300) -> None:
+        """
+        Custom Data를 사용해 TradingView Lightweight Charts 렌더링
+        Args:
+            data: [{'time': 'YYYY-MM-DD', 'open': 10, ...}] (Candlestick)
+                  또는 [{'time': 'YYYY-MM-DD', 'value': 10}] (Area)
+            title: 차트 제목
+            height: 높이
+        """
+        if not data:
+            components.html(f"<div style='color:#6b7280; font-family:sans-serif; padding:20px;'>No Data for {title}</div>", height=height)
+            return
+
+        is_candle = 'open' in data[0]
+        series_type = 'addCandlestickSeries' if is_candle else 'addAreaSeries'
+        chart_id = f"chart_{uuid.uuid4().hex}"
+        
+        # JSON 데이터 준비
+        data_json = json.dumps(data)
+        
+        # 차트 설정
+        layout_config = {
+            "background": {"type": "solid", "color": "#131722"},
+            "textColor": "#d1d4dc",
+        }
+        grid_config = {
+            "vertLines": {"color": "rgba(42, 46, 57, 0.2)"},
+            "horzLines": {"color": "rgba(42, 46, 57, 0.2)"},
+        }
+
+        # 시리즈 설정
+        if is_candle:
+            series_config = {
+                "upColor": "#26a69a",
+                "downColor": "#ef5350",
+                "borderVisible": False,
+                "wickUpColor": "#26a69a",
+                "wickDownColor": "#ef5350",
+            }
+        else:
+            series_config = {
+                "topColor": "rgba(41, 98, 255, 0.56)",
+                "bottomColor": "rgba(41, 98, 255, 0.04)",
+                "lineColor": "rgba(41, 98, 255, 1)",
+                "lineWidth": 2,
+            }
+
+        html_code = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="utf-8">
+            <style>
+                body {{ margin: 0; padding: 0; background-color: #131722; }}
+                #{chart_id} {{ width: 100%; height: {height}px; }}
+                .watermark {{
+                    position: absolute; top: 10px; left: 10px;
+                    font-size: 18px; color: rgba(255, 255, 255, 0.15);
+                    font-family: sans-serif; z-index: 10; pointer-events: none;
+                }}
+            </style>
+            <!-- Lightweight Charts v4.1.1 pinned for stability -->
+            <script src="https://unpkg.com/lightweight-charts@4.1.1/dist/lightweight-charts.standalone.production.js"></script>
+        </head>
+        <body>
+            <div id="{chart_id}">
+                <div class="watermark">{title}</div>
+            </div>
+            <script>
+            (function() {{
+                const container = document.getElementById('{chart_id}');
+                const data = {data_json};
+                
+                function createChart() {{
+                    try {{
+                        if (!window.LightweightCharts) {{
+                            setTimeout(createChart, 100);
+                            return;
+                        }}
+
+                        const chart = LightweightCharts.createChart(container, {{
+                            width: container.clientWidth || 300,
+                            height: {height},
+                            layout: {json.dumps(layout_config)},
+                            grid: {json.dumps(grid_config)},
+                            timeScale: {{ borderColor: "rgba(197, 203, 206, 0.8)" }},
+                            rightPriceScale: {{ borderColor: "rgba(197, 203, 206, 0.8)" }},
+                        }});
+
+                        const series = chart.{series_type}({json.dumps(series_config)});
+                        series.setData(data);
+                        chart.timeScale().fitContent();
+
+                        const resizeObserver = new ResizeObserver(entries => {{
+                            for (let entry of entries) {{
+                                if (entry.contentRect.width > 0) {{
+                                    chart.applyOptions({{ width: entry.contentRect.width }});
+                                }}
+                            }}
+                        }});
+                        resizeObserver.observe(container);
+
+                    }} catch (err) {{
+                        console.error("LWC Init Error:", err);
+                        container.innerHTML = `<div style="color:#ef5350; padding:10px; font-family:sans-serif;">Chart Error: ${{err.message}}</div>`;
+                    }}
+                }}
+
+                if (document.readyState === 'complete') {{
+                    createChart();
+                }} else {{
+                    window.addEventListener('load', createChart);
+                }}
+            }})();
+            </script>
+        </body>
+        </html>
+        """
+        components.html(html_code, height=height)
+
+    @staticmethod
+    def render_ticker_tape(symbols: list, height: int = 40):
+        # ... (기존 코드 유지)
+        pass
+
+    # ... 다른 메서드들도 그대로 유지되어야 하므로 나중에 전체 파일을 다시 쓸 필요가 있음
+    # 하지만 현재는 리팩토링 중이므로 일단 이 정도로만 작성하거나 
+    # 기존 파일에 multi_replace_file_content를 쓰는 것이 안전함.
