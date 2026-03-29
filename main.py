@@ -439,7 +439,7 @@ with tabs[3]:
 with tabs[4]:
     st.subheader("₿ 실시간 크립토")
     c_cols = st.columns(3)
-    for i, (label, sym) in enumerate([("₿ BTC/USDT", "BINANCE:BTCUSDT"), ("Ξ ETH/USDT", "BINANCE:ETHUSDT"), ("🐕 DOGE/USDT", "BINANCE:DOGEUSDT")]):
+    for i, (label, sym) in enumerate([("₿ BTC/USDT", "BINANCE:BTCUSDT"), ("Ξ ETH/USDT", "BINANCE:ETHUSDT"), ("🪙 XRP/USDT", "BINANCE:XRPUSDT")]):
         with c_cols[i]:
             st.caption(label)
             TradingViewWidget.render_commodity_mini_chart(sym, height=180, locale="kr")
