@@ -10,3 +10,5 @@ data/banpo_raemian/
 data/_offline_test/
 *.sqlite
 .molit_key
+data/firstige/_cache/
+logs/
