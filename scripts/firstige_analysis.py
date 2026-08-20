@@ -79,6 +79,7 @@ BUNYANGGA: Dict[str, tuple] = {   # 전용면적 앞 두 자리로 묶은 대표
     "222": (251_200, 265_900),
 }
 BUNYANG_YEAR = 2008
+PYEONG_TARGET_AREA_PREFIX = "84"   # 영상의 주인공 — 전용 84㎡(시장 통칭 34평)
 
 BASE_YEAR = 2025          # 실질값의 기준 연도
 UNITS_TOTAL = 2444        # 래미안퍼스티지 총 세대수 (건축물대장 전유부 2,444호로 확인)
