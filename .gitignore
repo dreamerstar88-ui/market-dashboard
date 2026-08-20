@@ -6,3 +6,6 @@ __pycache__/
 data/*.csv
 data/*.md
 !data/README.md
+data/banpo_raemian/
+data/_offline_test/
+*.sqlite
