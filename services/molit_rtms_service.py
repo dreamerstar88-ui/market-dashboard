@@ -223,11 +223,44 @@ def current_ym() -> str:
 
 
 def resolve_service_key(explicit: Optional[str] = None) -> str:
-    """CLI 인자 > 환경변수 순으로 인증키를 찾는다."""
-    key = explicit or os.getenv("MOLIT_SERVICE_KEY") or os.getenv("DATA_GO_KR_SERVICE_KEY")
-    if not key:
-        raise SystemExit(
-            "공공데이터포털 인증키가 없습니다. "
-            "MOLIT_SERVICE_KEY 환경변수에 넣거나 --service-key 로 전달하세요."
-        )
-    return key
+    """인증키를 찾는다. 우선순위: CLI 인자 > 환경변수 > 키 파일.
+
+    키 파일은 저장소 루트의 ``.molit_key`` (키만 한 줄) 또는 ``.env``
+    (``MOLIT_SERVICE_KEY=...`` 한 줄). 둘 다 .gitignore 에 있어 커밋되지 않는다.
+    터미널 환경변수 설정이 번거로운 경우를 위한 경로다.
+    """
+    if explicit:
+        return explicit.strip()
+
+    for var in ("MOLIT_SERVICE_KEY", "DATA_GO_KR_SERVICE_KEY"):
+        value = os.getenv(var)
+        if value and value.strip():
+            return value.strip()
+
+    root = Path(__file__).resolve().parents[1]
+
+    key_file = root / ".molit_key"
+    if key_file.exists():
+        value = key_file.read_text(encoding="utf-8").strip()
+        if value:
+            return value
+
+    env_file = root / ".env"
+    if env_file.exists():
+        for line in env_file.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if line.startswith("#") or "=" not in line:
+                continue
+            name, _, value = line.partition("=")
+            if name.strip() in ("MOLIT_SERVICE_KEY", "DATA_GO_KR_SERVICE_KEY"):
+                value = value.strip().strip('"').strip("'")
+                if value:
+                    return value
+
+    raise SystemExit(
+        "공공데이터포털 인증키를 찾지 못했습니다. 아래 중 하나를 하세요.\n"
+        f"  1) 저장소 루트에 .molit_key 파일을 만들고 인증키만 한 줄 적기 (권장)\n"
+        f"     경로: {root / '.molit_key'}\n"
+        "  2) 환경변수 MOLIT_SERVICE_KEY 설정\n"
+        "  3) 실행 시 --service-key '인증키' 로 직접 전달"
+    )
