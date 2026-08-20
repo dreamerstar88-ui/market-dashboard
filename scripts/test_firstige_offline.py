@@ -10,6 +10,13 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
+
+# Windows 콘솔(cp949)에서 한글·기호 출력이 깨지지 않도록 표준출력을 UTF-8로 고정한다
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(encoding="utf-8")
+    except AttributeError:  # 파이프로 리다이렉트된 경우 등
+        pass
 from services.molit_rtms_service import month_range  # noqa: E402
 
 HDR = ('<?xml version="1.0" encoding="UTF-8"?><response><header>'
@@ -90,7 +97,7 @@ def main() -> int:
         [sys.executable, str(ROOT / "scripts" / "firstige_report.py"),
          "--service-key", "OFFLINE", "--start", "202405", "--rent-start", "202405",
          "--end", "202506", "--outdir", str(outdir)],
-        capture_output=True, text=True,
+        capture_output=True, text=True, encoding="utf-8",
     )
     ok = check("종료코드 0", proc.returncode == 0, proc.stderr[-500:])
 

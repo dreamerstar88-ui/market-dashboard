@@ -25,6 +25,13 @@ from typing import Dict, Iterable, List, Optional
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+# Windows 콘솔(cp949)에서 한글·기호 출력이 깨지지 않도록 표준출력을 UTF-8로 고정한다
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(encoding="utf-8")
+    except AttributeError:  # 파이프로 리다이렉트된 경우 등
+        pass
+
 from services.molit_rtms_service import (  # noqa: E402
     MolitRtmsClient,
     current_ym,

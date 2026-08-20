@@ -17,6 +17,13 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
+# Windows 콘솔(cp949)에서 한글·기호 출력이 깨지지 않도록 표준출력을 UTF-8로 고정한다
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(encoding="utf-8")
+    except AttributeError:  # 파이프로 리다이렉트된 경우 등
+        pass
+
 from services.molit_rtms_service import MolitRtmsClient, MolitApiError, month_range  # noqa: E402
 
 TRADE_XML = """<?xml version="1.0" encoding="UTF-8"?>
@@ -110,7 +117,7 @@ def main() -> int:
          "--service-key", "OFFLINE_TEST_KEY",
          "--start", "202604", "--end", "202606",
          "--outdir", str(outdir)],
-        capture_output=True, text=True,
+        capture_output=True, text=True, encoding="utf-8",
     )
     ok &= check("수집기 종료코드 0", proc.returncode == 0, proc.stderr[-400:])
 
@@ -137,7 +144,7 @@ def main() -> int:
         [sys.executable, str(ROOT / "scripts" / "collect_banpo_raemian.py"),
          "--service-key", "OFFLINE_TEST_KEY", "--start", "202604", "--end", "202606",
          "--outdir", str(outdir), "--all-seocho-raemian"],
-        capture_output=True, text=True,
+        capture_output=True, text=True, encoding="utf-8",
     )
     with all_csv.open(encoding="utf-8-sig") as fh:
         wide = list(csv.DictReader(fh))
