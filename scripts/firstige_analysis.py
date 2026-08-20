@@ -56,17 +56,16 @@ CPI: Dict[int, float] = {
     2021: 118.6699, 2022: 124.7096, 2023: 129.1960, 2024: 132.1956, 2025: 135.0022,
     2026: 135.0022,  # 미공표 — 2025년 값 사용
 }
-# 전용면적 타입별 세대수 — 아파트진 단지정보(2026-08-20 조회, 총 2,441세대)
-# https://aptgin.com/home/popup/pp_danji/apt/am1128em0
-# 위키백과·나무위키는 2,444세대로 적고 있어 3세대 차이가 있다. 원인 미확인이라
-# 세대수 관련 계산은 두 값을 모두 병기한다.
+# 전용면적 타입별 세대수 — 국토교통부 건축HUB 건축물대장정보 서비스(전유공용면적 조회)로
+# 직접 집계한 값. scripts/firstige_units.py 가 data/firstige/세대수_전용면적별.csv 로 낸다.
+# 그 파일이 있으면 그것을 쓰고, 없으면 아래 표를 쓴다(2026-08-20 집계, 합계 2,444세대).
 UNITS_BY_AREA: Dict[str, int] = {
-    "59.96": 238, "59.98": 44, "59.89": 230,
-    "84.76": 52, "84.93": 853, "84.85": 50,
+    "59.89": 230, "59.96": 238, "59.98": 44,
+    "84.76": 52, "84.85": 50, "84.93": 853,
     "115.65": 56, "117.12": 74,
     "135.92": 182, "136.65": 28,
-    "168.65": 108, "169.31": 121,
-    "198.04": 152, "198.22": 71,
+    "168.65": 109, "169.31": 122,
+    "198.04": 152, "198.22": 72,
     "222.15": 26, "222.76": 156,
 }
 
@@ -82,7 +81,7 @@ BUNYANGGA: Dict[str, tuple] = {   # 전용면적 앞 두 자리로 묶은 대표
 BUNYANG_YEAR = 2008
 
 BASE_YEAR = 2025          # 실질값의 기준 연도
-UNITS_TOTAL = 2444        # 래미안퍼스티지 총 세대수
+UNITS_TOTAL = 2444        # 래미안퍼스티지 총 세대수 (건축물대장 전유부 2,444호로 확인)
 RECENT_MONTHS_START = "2025-08-01"   # '최근 12개월'의 시작
 RECENT_5Y_START = "2021-08-01"       # '최근 5년'의 시작
 
@@ -220,13 +219,25 @@ def turnover(sales: List[Dict[str, str]]) -> Dict[str, float]:
 
 
 
-def units_by_pyeong(sales: List[Dict[str, str]]) -> Dict[str, int]:
+
+def load_units(indir: Path) -> Dict[str, int]:
+    """건축물대장으로 집계한 세대수 CSV가 있으면 그것을 쓰고, 없으면 내장 표를 쓴다."""
+    path = indir / "세대수_전용면적별.csv"
+    rows = load_csv(path)
+    if not rows:
+        log.info("세대수 CSV 없음 — 내장 표 사용 (합계 %s세대)", sum(UNITS_BY_AREA.values()))
+        return dict(UNITS_BY_AREA)
+    units = {f"{float(r['전용면적']):.2f}": int(r["세대수"]) for r in rows}
+    log.info("세대수 CSV 사용: %s (합계 %s세대)", path, sum(units.values()))
+    return units
+
+def units_by_pyeong(sales: List[Dict[str, str]], units_by_area: Dict[str, int]) -> Dict[str, int]:
     """전용면적 타입별 세대수를 우리 평형(전용면적 ÷ 3.3058) 기준으로 묶는다."""
     area_to_pyeong: Dict[str, str] = {}
     for r in sales:
         area_to_pyeong.setdefault(f"{float(r['전용면적']):.2f}", r["평형"])
     out: Dict[str, int] = defaultdict(int)
-    for area, units in UNITS_BY_AREA.items():
+    for area, units in units_by_area.items():
         key = f"{float(area):.2f}"
         pyeong = area_to_pyeong.get(key)
         if pyeong is None:
@@ -236,9 +247,9 @@ def units_by_pyeong(sales: List[Dict[str, str]]) -> Dict[str, int]:
     return dict(out)
 
 
-def turnover_by_pyeong(sales: List[Dict[str, str]]) -> List[Dict]:
+def turnover_by_pyeong(sales: List[Dict[str, str]], units_by_area: Dict[str, int]) -> List[Dict]:
     """평형별 회전율과 미거래 세대 하한을 낸다."""
-    units = units_by_pyeong(sales)
+    units = units_by_pyeong(sales, units_by_area)
     counts: Dict[str, int] = defaultdict(int)
     for r in sales:
         counts[r["평형"]] += 1
@@ -315,8 +326,8 @@ def build_report(series: List[Dict], mult: List[Dict], vbp: List[Dict],
         )
 
     lines += ["", "## 0-2. 평형별 회전율과 미거래 세대", "",
-              "세대수는 아파트진 단지정보(총 2,441세대) 기준입니다. "
-              "위키백과·나무위키는 2,444세대로 적고 있어 3세대 차이가 있습니다.", "",
+              "세대수는 국토교통부 건축HUB 건축물대장정보 서비스(전유공용면적 조회)로 "
+              "직접 집계한 값입니다. 주거용 전유 세대 2,444호로 위키백과 표기와 일치합니다.", "",
               "| 평형 | 세대수 | 매매 건수 | 회전율 | 미거래 세대 하한 |", "|---|---:|---:|---:|---:|"]
     for r in tpy:
         lines.append(
@@ -397,7 +408,7 @@ def main() -> int:
     mult = multiples(sales, bunyang)
     vbp = volume_by_price(sales)
     turn = turnover(sales)
-    tpy = turnover_by_pyeong(sales)
+    tpy = turnover_by_pyeong(sales, load_units(indir))
     bmult = bunyang_multiples(sales)
 
     write_csv(outdir / "평당가_시계열_평형별.csv", series, list(series[0].keys()))
