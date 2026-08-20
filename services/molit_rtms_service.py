@@ -18,7 +18,7 @@ from dataclasses import dataclass, field
 from datetime import date
 from pathlib import Path
 from typing import Dict, Iterable, Iterator, List, Optional
-from urllib.parse import unquote
+from urllib.parse import quote, unquote
 
 import requests
 
@@ -110,6 +110,18 @@ class MolitRtmsClient:
         sub.mkdir(parents=True, exist_ok=True)
         return sub / f"{deal_ymd}_p{page}.xml"
 
+    def _mask(self, text: object) -> str:
+        """오류 메시지에 섞여 나오는 인증키를 가린다.
+
+        requests 의 예외 문자열에는 호출 URL이 통째로 들어 있어, 재시도 로그마다
+        serviceKey 가 평문으로 찍힌다. 로그·예외 밖으로 나가기 전에 지운다.
+        """
+        out = str(text)
+        for form in (self.service_key, quote(self.service_key, safe="")):
+            if form:
+                out = out.replace(form, "***SERVICE_KEY***")
+        return out
+
     def _fetch_xml(self, kind: str, lawd_cd: str, deal_ymd: str, page: int, rows: int) -> str:
         cached = self._cache_path(kind, lawd_cd, deal_ymd, page)
         if cached and cached.exists() and cached.stat().st_size > 0:
@@ -135,9 +147,9 @@ class MolitRtmsClient:
             except Exception as exc:  # 네트워크/일시 오류는 지수 백오프로 재시도
                 last_err = exc
                 wait = 2 ** attempt
-                logger.warning("%s %s p%s 실패(%s) — %ss 후 재시도", kind, deal_ymd, page, exc, wait)
+                logger.warning("%s %s p%s 실패(%s) — %ss 후 재시도", kind, deal_ymd, page, self._mask(exc), wait)
                 time.sleep(wait)
-        raise MolitApiError(f"{kind} {lawd_cd} {deal_ymd} p{page} 호출 실패: {last_err}")
+        raise MolitApiError(f"{kind} {lawd_cd} {deal_ymd} p{page} 호출 실패: {self._mask(last_err)}")
 
     # ----------------------------------------------------------------- parse
     @staticmethod
