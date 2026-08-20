@@ -56,6 +56,31 @@ CPI: Dict[int, float] = {
     2021: 118.6699, 2022: 124.7096, 2023: 129.1960, 2024: 132.1956, 2025: 135.0022,
     2026: 135.0022,  # 미공표 — 2025년 값 사용
 }
+# 전용면적 타입별 세대수 — 아파트진 단지정보(2026-08-20 조회, 총 2,441세대)
+# https://aptgin.com/home/popup/pp_danji/apt/am1128em0
+# 위키백과·나무위키는 2,444세대로 적고 있어 3세대 차이가 있다. 원인 미확인이라
+# 세대수 관련 계산은 두 값을 모두 병기한다.
+UNITS_BY_AREA: Dict[str, int] = {
+    "59.96": 238, "59.98": 44, "59.89": 230,
+    "84.76": 52, "84.93": 853, "84.85": 50,
+    "115.65": 56, "117.12": 74,
+    "135.92": 182, "136.65": 28,
+    "168.65": 108, "169.31": 121,
+    "198.04": 152, "198.22": 71,
+    "222.15": 26, "222.76": 156,
+}
+
+# 최초 분양가 — 2008년 10월 14~17일 청약(후분양), 일반분양 426세대.
+# 전용면적별 최저~최고 (만원). 출처: 뉴스스페이스 랭킹연구소 기사(2026-08-20 조회)
+# https://www.newsspace.kr/news/article.html?no=3680
+# 세 개 면적만 공개돼 있어 나머지 평형은 미확인이다.
+BUNYANGGA: Dict[str, tuple] = {   # 전용면적 앞 두 자리로 묶은 대표값
+    "59": (69_700, 77_400),
+    "84": (99_700, 112_700),
+    "222": (251_200, 265_900),
+}
+BUNYANG_YEAR = 2008
+
 BASE_YEAR = 2025          # 실질값의 기준 연도
 UNITS_TOTAL = 2444        # 래미안퍼스티지 총 세대수
 RECENT_MONTHS_START = "2025-08-01"   # '최근 12개월'의 시작
@@ -194,13 +219,76 @@ def turnover(sales: List[Dict[str, str]]) -> Dict[str, float]:
     }
 
 
+
+def units_by_pyeong(sales: List[Dict[str, str]]) -> Dict[str, int]:
+    """전용면적 타입별 세대수를 우리 평형(전용면적 ÷ 3.3058) 기준으로 묶는다."""
+    area_to_pyeong: Dict[str, str] = {}
+    for r in sales:
+        area_to_pyeong.setdefault(f"{float(r['전용면적']):.2f}", r["평형"])
+    out: Dict[str, int] = defaultdict(int)
+    for area, units in UNITS_BY_AREA.items():
+        key = f"{float(area):.2f}"
+        pyeong = area_to_pyeong.get(key)
+        if pyeong is None:
+            log.warning("거래 자료에 없는 면적 타입: %s㎡ (%s세대)", area, units)
+            continue
+        out[pyeong] += units
+    return dict(out)
+
+
+def turnover_by_pyeong(sales: List[Dict[str, str]]) -> List[Dict]:
+    """평형별 회전율과 미거래 세대 하한을 낸다."""
+    units = units_by_pyeong(sales)
+    counts: Dict[str, int] = defaultdict(int)
+    for r in sales:
+        counts[r["평형"]] += 1
+    out = []
+    for pyeong in sorted(units, key=int):
+        n, u = counts.get(pyeong, 0), units[pyeong]
+        out.append({
+            "평형": pyeong,
+            "세대수": u,
+            "매매_건수": n,
+            "회전율": round(n / u, 3),
+            "미거래_세대_하한": max(0, u - n),
+            "미거래_비율_하한": round(max(0.0, 1 - n / u), 3),
+        })
+    return out
+
+
+def bunyang_multiples(sales: List[Dict[str, str]]) -> List[Dict]:
+    """최초 분양가 대비 현재 시세 배수. 분양가가 알려진 평형만 낸다."""
+    recent = [r for r in sales if r["계약일자"] >= RECENT_MONTHS_START]
+    out = []
+    for prefix, (low, high) in BUNYANGGA.items():
+        rows = [r for r in recent if r["전용면적"].startswith(prefix)]
+        if not rows:
+            continue
+        mid = (low + high) / 2
+        now = statistics.median(float(r["거래금액_만원"]) for r in rows)
+        mid_real = real(mid, BUNYANG_YEAR)
+        out.append({
+            "전용면적대": f"{prefix}㎡대",
+            "평형": rows[0]["평형"],
+            "분양가_최저_만원": low,
+            "분양가_최고_만원": high,
+            "분양가_중간_만원": round(mid),
+            f"분양가_실질{BASE_YEAR}_만원": round(mid_real),
+            "최근12개월_중위_만원": round(now),
+            "최근12개월_건수": len(rows),
+            "명목배수": round(now / mid, 2),
+            "실질배수": round(now / mid_real, 2),
+        })
+    return out
+
 # -------------------------------------------------------------- 리포트
 def bar(count: int, peak: int, width: int = 30) -> str:
     return "█" * max(1, round(count / peak * width)) if count else ""
 
 
 def build_report(series: List[Dict], mult: List[Dict], vbp: List[Dict],
-                 turn: Dict[str, float], sales: List[Dict[str, str]]) -> str:
+                 turn: Dict[str, float], sales: List[Dict[str, str]],
+                 bmult: List[Dict], tpy: List[Dict]) -> str:
     lines = [
         "# 래미안퍼스티지 시세 변화 분석",
         "",
@@ -210,6 +298,33 @@ def build_report(series: List[Dict], mult: List[Dict], vbp: List[Dict],
         f"실질값은 한국 소비자물가지수로 {BASE_YEAR}년 가치로 환산한 것입니다. "
         "2026년 물가지수는 아직 공표 전이라 2025년 값을 그대로 적용했습니다.",
         "출처: World Bank, World Development Indicators, FP.CPI.TOTL (2026-08-20 조회).",
+        "",
+        "## 0. 최초 분양가 → 현재",
+        "",
+        "2008년 10월 14~17일 청약(후분양), 일반분양 426세대. 분양가는 공개 보도 기준이며 "
+        "실거래가 자료에는 없습니다. 세 개 면적만 공개돼 있습니다.",
+        "",
+        "| 전용면적대 | 분양가(최저~최고) | 분양가 실질환산 | 최근 12개월 중위 | 명목배수 | 실질배수 |",
+        "|---|---:|---:|---:|---:|---:|",
+    ]
+    for r in bmult:
+        lines.append(
+            f"| {r['전용면적대']} | {r['분양가_최저_만원']:,}~{r['분양가_최고_만원']:,}만원 "
+            f"| {r[f'분양가_실질{BASE_YEAR}_만원']:,}만원 | {r['최근12개월_중위_만원']:,}만원 "
+            f"| {r['명목배수']}배 | **{r['실질배수']}배** |"
+        )
+
+    lines += ["", "## 0-2. 평형별 회전율과 미거래 세대", "",
+              "세대수는 아파트진 단지정보(총 2,441세대) 기준입니다. "
+              "위키백과·나무위키는 2,444세대로 적고 있어 3세대 차이가 있습니다.", "",
+              "| 평형 | 세대수 | 매매 건수 | 회전율 | 미거래 세대 하한 |", "|---|---:|---:|---:|---:|"]
+    for r in tpy:
+        lines.append(
+            f"| {r['평형']}평 | {r['세대수']:,} | {r['매매_건수']:,} | {r['회전율']}회 "
+            f"| {r['미거래_세대_하한']:,}세대 ({r['미거래_비율_하한']*100:.0f}%) |"
+        )
+
+    lines += [
         "",
         "## 1. 분양권 → 최근 12개월, 명목배수와 실질배수",
         "",
@@ -282,12 +397,16 @@ def main() -> int:
     mult = multiples(sales, bunyang)
     vbp = volume_by_price(sales)
     turn = turnover(sales)
+    tpy = turnover_by_pyeong(sales)
+    bmult = bunyang_multiples(sales)
 
     write_csv(outdir / "평당가_시계열_평형별.csv", series, list(series[0].keys()))
     write_csv(outdir / "실질배수_평형별.csv", mult, list(mult[0].keys()))
     write_csv(outdir / "매물대_평형별.csv", vbp, list(vbp[0].keys()))
+    write_csv(outdir / "회전율_평형별.csv", tpy, list(tpy[0].keys()))
+    write_csv(outdir / "분양가_대비_배수.csv", bmult, list(bmult[0].keys()))
     (outdir / "REPORT_분석.md").write_text(
-        build_report(series, mult, vbp, turn, sales), encoding="utf-8")
+        build_report(series, mult, vbp, turn, sales, bmult, tpy), encoding="utf-8")
 
     log.info("완료 — 시계열 %s행 / 배수 %s행 / 매물대 %s행 -> %s",
              len(series), len(mult), len(vbp), outdir)
