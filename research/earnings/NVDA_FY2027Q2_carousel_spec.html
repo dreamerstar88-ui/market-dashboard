@@ -1,0 +1,760 @@
+<title>엔비디아 실적 캐러셀 명세</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+
+<style>
+  :root{
+    --paper:#F4F6F3; --surface:#FFFFFF; --surface-2:#EDF0EC;
+    --ink:#14181A; --ink-2:#5A625E; --ink-3:#868E89;
+    --rule:#D9DED8; --rule-strong:#BCC3BB;
+    --redline:#B0452C; --redline-soft:#F0DED8;
+    --approve:#2E6B5E; --approve-soft:#DCEAE4;
+    --note:#8A5F12; --note-soft:#F2E6CC;
+    --shadow:0 1px 2px rgba(20,24,26,.06),0 8px 24px -12px rgba(20,24,26,.18);
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --paper:#131718; --surface:#1A1F20; --surface-2:#222829;
+      --ink:#E7EBE6; --ink-2:#98A19C; --ink-3:#77807B;
+      --rule:#2A3132; --rule-strong:#3A4344;
+      --redline:#E2856A; --redline-soft:#3A2620;
+      --approve:#6FB9A1; --approve-soft:#1D302B;
+      --note:#D8AC52; --note-soft:#332811;
+      --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 24px -12px rgba(0,0,0,.6);
+    }
+  }
+  :root[data-theme="dark"]{
+    --paper:#131718; --surface:#1A1F20; --surface-2:#222829;
+    --ink:#E7EBE6; --ink-2:#98A19C; --ink-3:#77807B;
+    --rule:#2A3132; --rule-strong:#3A4344;
+    --redline:#E2856A; --redline-soft:#3A2620;
+    --approve:#6FB9A1; --approve-soft:#1D302B;
+    --note:#D8AC52; --note-soft:#332811;
+    --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 24px -12px rgba(0,0,0,.6);
+  }
+
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:var(--paper); color:var(--ink);
+    font-family:"IBM Plex Sans KR",system-ui,-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+    font-size:16px; line-height:1.7; -webkit-font-smoothing:antialiased;
+  }
+  .mono{font-family:"IBM Plex Mono",ui-monospace,"SFMono-Regular",Menlo,monospace}
+  .wrap{max-width:1120px; margin:0 auto; padding:0 28px 96px}
+
+  /* ---------- masthead ---------- */
+  .mast{padding:72px 0 40px; border-bottom:2px solid var(--ink)}
+  .eyebrow{
+    font-family:"IBM Plex Mono",monospace; font-size:12px; font-weight:500;
+    letter-spacing:.16em; text-transform:uppercase; color:var(--redline);
+    display:flex; gap:14px; flex-wrap:wrap; align-items:center;
+  }
+  .eyebrow span:not(:last-child)::after{content:"／"; margin-left:14px; color:var(--rule-strong)}
+  h1{
+    font-size:clamp(34px,5.2vw,54px); line-height:1.15; font-weight:700;
+    letter-spacing:-.02em; margin:18px 0 14px; text-wrap:balance;
+  }
+  .dek{font-size:18px; color:var(--ink-2); max-width:62ch; margin:0}
+  .meta-row{
+    display:flex; flex-wrap:wrap; gap:8px 10px; margin-top:26px;
+  }
+  .tag{
+    font-family:"IBM Plex Mono",monospace; font-size:12px; font-weight:500;
+    padding:5px 10px; border:1px solid var(--rule-strong); border-radius:2px;
+    color:var(--ink-2); background:var(--surface);
+  }
+  .tag.on{border-color:var(--approve); color:var(--approve); background:var(--approve-soft)}
+
+  /* ---------- sections ---------- */
+  section{padding-top:64px}
+  .sec-head{display:flex; align-items:baseline; gap:16px; border-bottom:1px solid var(--rule-strong); padding-bottom:12px; margin-bottom:32px}
+  .sec-num{font-family:"IBM Plex Mono",monospace; font-size:13px; font-weight:600; color:var(--redline); letter-spacing:.08em}
+  h2{font-size:26px; font-weight:600; letter-spacing:-.015em; margin:0}
+  h3{font-size:18px; font-weight:600; margin:36px 0 14px; letter-spacing:-.01em}
+  p{margin:0 0 16px; max-width:68ch}
+  a{color:var(--redline)}
+
+  /* ---------- spec table ---------- */
+  .tbl-scroll{overflow-x:auto; margin:18px 0 8px; border:1px solid var(--rule); border-radius:3px; background:var(--surface)}
+  table{border-collapse:collapse; width:100%; min-width:520px; font-size:14.5px}
+  th,td{padding:11px 14px; text-align:left; border-bottom:1px solid var(--rule); vertical-align:top}
+  thead th{
+    font-family:"IBM Plex Mono",monospace; font-size:11.5px; font-weight:600;
+    letter-spacing:.1em; text-transform:uppercase; color:var(--ink-3);
+    background:var(--surface-2); border-bottom:1px solid var(--rule-strong);
+  }
+  tbody tr:last-child td{border-bottom:none}
+  td.num,th.num{text-align:right; font-family:"IBM Plex Mono",monospace; font-variant-numeric:tabular-nums}
+  .up{color:var(--approve); font-weight:500}
+
+  /* ---------- swatches ---------- */
+  .sw-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(148px,1fr)); gap:12px; margin:18px 0}
+  .sw{border:1px solid var(--rule); border-radius:3px; overflow:hidden; background:var(--surface)}
+  .sw-chip{height:56px}
+  .sw-txt{padding:8px 10px; font-family:"IBM Plex Mono",monospace; font-size:11.5px; line-height:1.5}
+  .sw-txt b{display:block; font-weight:600; color:var(--ink); font-size:12px}
+  .sw-txt span{color:var(--ink-3)}
+
+  /* ---------- slide entry ---------- */
+  .slide{
+    display:grid; grid-template-columns:212px 1fr; gap:32px;
+    padding:34px 0; border-bottom:1px solid var(--rule);
+  }
+  .slide:last-of-type{border-bottom:none}
+  @media (max-width:720px){ .slide{grid-template-columns:1fr; gap:22px} }
+
+  .board-col{position:sticky; top:20px; align-self:start}
+  .board{
+    aspect-ratio:4/5; background:linear-gradient(168deg,#0B0F14,#111820);
+    border-radius:5px; padding:13px; display:flex; flex-direction:column; gap:7px;
+    box-shadow:var(--shadow); color:#F2F5F7; overflow:hidden; position:relative;
+  }
+  .board .idx{font-family:"IBM Plex Mono",monospace; font-size:8.5px; color:#6E7B85; letter-spacing:.1em}
+  .blk{border-radius:2.5px; padding:5px 7px; font-size:8.5px; line-height:1.35; letter-spacing:-.01em}
+  .blk.hd{background:rgba(242,245,247,.1); font-size:11px; font-weight:600; padding:8px 7px}
+  .blk.viz{background:rgba(118,185,0,.15); border:1px dashed rgba(118,185,0,.5); color:#A9D95C; flex:1; display:flex; align-items:center; justify-content:center; text-align:center; font-family:"IBM Plex Mono",monospace; font-size:8px}
+  .blk.viz.amber{background:rgba(245,166,35,.14); border-color:rgba(245,166,35,.5); color:#F5C06A}
+  .blk.q{background:rgba(242,245,247,.055); color:#B7C2C9; font-style:italic}
+  .blk.sm{background:rgba(242,245,247,.055); color:#93A0A8}
+  .board .foot{font-family:"IBM Plex Mono",monospace; font-size:7px; color:#5D6870; letter-spacing:.04em}
+  .board .bar{height:2px; background:rgba(242,245,247,.14); border-radius:2px; position:relative}
+  .board .bar i{position:absolute; left:0; top:0; height:100%; background:#76B900; border-radius:2px}
+  .board-cap{font-family:"IBM Plex Mono",monospace; font-size:10.5px; color:var(--ink-3); margin-top:9px; text-align:center; letter-spacing:.04em}
+
+  .slide-role{
+    font-family:"IBM Plex Mono",monospace; font-size:11.5px; font-weight:600; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--redline); margin-bottom:7px;
+  }
+  .slide h3{margin:0 0 18px; font-size:23px; font-weight:700; letter-spacing:-.02em; text-wrap:balance}
+
+  dl.spec{display:grid; grid-template-columns:96px 1fr; gap:0; margin:0; font-size:14.5px}
+  dl.spec dt{
+    font-family:"IBM Plex Mono",monospace; font-size:11px; font-weight:600; letter-spacing:.08em;
+    text-transform:uppercase; color:var(--ink-3); padding:9px 0; border-top:1px solid var(--rule);
+  }
+  dl.spec dd{margin:0; padding:9px 0 9px 14px; border-top:1px solid var(--rule); color:var(--ink)}
+  dl.spec dd:first-of-type,dl.spec dt:first-of-type{border-top:1px solid var(--rule-strong)}
+  @media (max-width:520px){
+    dl.spec{grid-template-columns:1fr}
+    dl.spec dd{padding:0 0 12px; border-top:none}
+    dl.spec dt{padding:10px 0 3px}
+  }
+  .quote{color:var(--ink-2); font-style:italic}
+  .quote b{font-style:normal; color:var(--ink); font-weight:600}
+  code{font-family:"IBM Plex Mono",monospace; font-size:.9em; background:var(--surface-2); padding:1.5px 5px; border-radius:2px; white-space:nowrap}
+
+  /* ---------- callout ---------- */
+  .call{
+    border-left:3px solid var(--redline); background:var(--redline-soft);
+    padding:16px 20px; margin:22px 0; border-radius:0 3px 3px 0;
+  }
+  .call.ok{border-left-color:var(--approve); background:var(--approve-soft)}
+  .call.note{border-left-color:var(--note); background:var(--note-soft)}
+  .call p:last-child{margin-bottom:0}
+  .call-t{font-family:"IBM Plex Mono",monospace; font-size:11.5px; font-weight:600; letter-spacing:.1em; text-transform:uppercase; margin-bottom:7px}
+  .call .call-t{color:var(--redline)}
+  .call.ok .call-t{color:var(--approve)}
+  .call.note .call-t{color:var(--note)}
+
+  /* ---------- chart previews ---------- */
+  .chartbox{background:linear-gradient(168deg,#0B0F14,#111820); border-radius:5px; padding:20px; margin:20px 0; box-shadow:var(--shadow); overflow-x:auto}
+  .chartbox svg{display:block; margin:0 auto; max-width:100%; height:auto}
+  .chart-lbl{font-family:"IBM Plex Mono",monospace; font-size:11px; color:var(--ink-3); text-align:center; margin-top:9px; letter-spacing:.04em}
+
+  ul{padding-left:20px; margin:0 0 16px; max-width:68ch}
+  li{margin-bottom:7px}
+  li::marker{color:var(--ink-3)}
+  .checklist{list-style:none; padding:0}
+  .checklist li{padding-left:26px; position:relative}
+  .checklist li::before{content:"☐"; position:absolute; left:0; color:var(--redline); font-family:"IBM Plex Mono",monospace}
+
+  hr.rule{border:none; border-top:1px solid var(--rule); margin:44px 0}
+  .foot-note{font-size:13.5px; color:var(--ink-3); border-top:1px solid var(--rule-strong); padding-top:20px; margin-top:56px}
+  @media (prefers-reduced-motion:no-preference){ .board{transition:transform .2s ease} .board:hover{transform:translateY(-2px)} }
+</style>
+
+<div class="wrap">
+
+<header class="mast">
+  <div class="eyebrow"><span>제작 명세서</span><span>Instagram Carousel</span><span>10 slides · 1080×1350</span></div>
+  <h1>엔비디아 FY27 2분기 실적<br>인스타그램 캐러셀 10장</h1>
+  <p class="dek">2026년 8월 26일(ET) 발표된 NVIDIA FY2027 2분기 실적을, SEC 8-K 원문과 어닝콜 전문을 근거로 캐러셀 10장에 담기 위한 슬라이드별 제작 명세입니다. 모든 수치는 원문 대조를 마쳤습니다.</p>
+  <div class="meta-row">
+    <span class="tag">작성 2026-08-27</span>
+    <span class="tag">구성 확정 · 표지 1 + 본문 8 + 마무리 1</span>
+    <span class="tag on">데이터 검증 완료</span>
+    <span class="tag on">Q4 FY26 결측 해소</span>
+  </div>
+</header>
+
+<!-- ============ 1. 변경사항 ============ -->
+<section>
+  <div class="sec-head"><span class="sec-num">01</span><h2>직전 회차 확인사항 처리 결과</h2></div>
+
+  <div class="call ok">
+    <div class="call-t">해결 · 3번 항목</div>
+    <p><b>Q4 FY2026 매출 결측이 해소되었습니다.</b> 커넥터(Alpha Vantage 정규화 손익계산서)로 <code>$68,127M</code>을 확보했고, 우리가 8-K·어닝콜 원문으로 직접 검증한 4개 분기(Q2 FY26 $46,743M / Q3 FY26 $57,006M / Q1 FY27 $81,615M / Q2 FY27 $96,221M)와 <b>모두 정확히 일치</b>했습니다. 로컬 작업 없이 진행 가능하며, <b>S2를 5분기 시계열로 확장</b>합니다.</p>
+  </div>
+
+  <div class="call ok">
+    <div class="call-t">확정 · 1·2번 항목</div>
+    <p><b>실사 이미지</b>는 인물이 아닌 대상(데이터센터 랙, 전력 인프라, 반도체 매크로, 물류 로봇)으로 한정해 사용합니다. Jensen Huang·Colette Kress 등 <b>실존 인물의 생성 이미지는 만들지 않습니다</b> — 인용문은 타이포그래피로만 처리합니다.</p>
+    <p><b>로고·제품 렌더</b>는 사용합니다. 로고는 공식 브랜드 마크를 그대로, 제품 비주얼은 말씀하신 방식대로 <b>레퍼런스를 참고해 오리지널로 재생성</b>합니다(원본 파일 복제보다 안전하고, 캐러셀 팔레트에도 맞출 수 있습니다).</p>
+  </div>
+
+  <h3>이번 회차 구조 변경</h3>
+  <p>S5(플랫폼 논리)와 S6(제품)을 <b>한 장으로 통합</b>하고, 확보된 자리에 <b>주주환원·재무상태를 독립 슬라이드(S8)</b>로 배치했습니다. 최종 10장 순서는 어닝콜 발표 순서를 그대로 따릅니다.</p>
+</section>
+
+<!-- ============ 2. 공통 사양 ============ -->
+<section>
+  <div class="sec-head"><span class="sec-num">02</span><h2>공통 사양</h2></div>
+
+  <div class="tbl-scroll">
+    <table>
+      <thead><tr><th>항목</th><th>사양</th></tr></thead>
+      <tbody>
+        <tr><td><b>캔버스</b></td><td><code>1080 × 1350px</code> (4:5) — 캐러셀은 첫 장 비율로 전체가 고정되므로 10장 전부 동일 필수</td></tr>
+        <tr><td><b>세이프존</b></td><td>상 <code>80</code> / 하 <code>160</code> / 좌우 <code>72</code> px. 하단 160px은 계정명·캡션 UI가 덮으므로 핵심 정보 배치 금지</td></tr>
+        <tr><td><b>타이포</b></td><td>한글 Pretendard · 숫자 Inter <code>tabular-nums</code><br>헤드라인 88–104 Bold / 서브 44 / 본문 32–36 (줄간 1.5) / 출처 22 (60% 불투명도)<br><b>28px 미만 금지</b></td></tr>
+        <tr><td><b>텍스트 총량</b></td><td>장당 한글 60–90자. <b>1장 = 1메시지</b></td></tr>
+        <tr><td><b>반복 요소</b></td><td>좌상단 <code>03 / 10</code> · 하단 프로그레스 바 · 우하단 스와이프 화살표(2–9장) · 하단 출처 1줄</td></tr>
+        <tr><td><b>차트 원칙</b></td><td>축·격자 최소화, <b>값은 직접 라벨링</b>(모바일에서 축을 읽지 않음), 범례 대신 직접 표기, 색 3개 이하</td></tr>
+        <tr><td><b>파일 출력</b></td><td>PNG, sRGB, 각 장 2MB 이하. 파일명 <code>nvda-q2fy27-01.png</code> … <code>-10.png</code></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>팔레트</h3>
+  <div class="sw-grid">
+    <div class="sw"><div class="sw-chip" style="background:#0B0F14"></div><div class="sw-txt"><b>Ground</b><span>#0B0F14</span></div></div>
+    <div class="sw"><div class="sw-chip" style="background:#111820"></div><div class="sw-txt"><b>Surface</b><span>#111820</span></div></div>
+    <div class="sw"><div class="sw-chip" style="background:#76B900"></div><div class="sw-txt"><b>성장 · 긍정</b><span>#76B900</span></div></div>
+    <div class="sw"><div class="sw-chip" style="background:#F5A623"></div><div class="sw-txt"><b>마진 · 관찰</b><span>#F5A623</span></div></div>
+    <div class="sw"><div class="sw-chip" style="background:#F2F5F7"></div><div class="sw-txt"><b>텍스트</b><span>#F2F5F7</span></div></div>
+    <div class="sw"><div class="sw-chip" style="background:#6E7B85"></div><div class="sw-txt"><b>보조 텍스트</b><span>#6E7B85</span></div></div>
+  </div>
+  <p>다크 베이스는 피드에서 시선을 끌고 차트 대비 확보에도 유리합니다. 그린은 <b>성장·긍정</b>, 앰버는 <b>마진·관찰 포인트</b>에만 쓰고 장식용으로 남발하지 않습니다.</p>
+</section>
+
+<!-- ============ 3. 데이터 대장 ============ -->
+<section>
+  <div class="sec-head"><span class="sec-num">03</span><h2>데이터 대장</h2></div>
+  <p>캐러셀에 등장하는 모든 수치의 원장입니다. 제작 중 수치가 필요하면 반드시 이 표를 참조하고, 표에 없는 숫자는 쓰지 않습니다.</p>
+
+  <h3>분기 매출 시계열 <span class="mono" style="font-size:12px;color:var(--ink-3)">— S2 차트 데이터</span></h3>
+  <div class="tbl-scroll">
+    <table>
+      <thead><tr><th>분기</th><th class="num">매출</th><th class="num">전년비</th><th>출처</th></tr></thead>
+      <tbody>
+        <tr><td>Q2 FY26 <span class="mono" style="color:var(--ink-3)">2025-07</span></td><td class="num">$46,743M</td><td class="num up">+55.6%</td><td>8-K 원문 (직접 검증)</td></tr>
+        <tr><td>Q3 FY26 <span class="mono" style="color:var(--ink-3)">2025-10</span></td><td class="num">$57,006M</td><td class="num up">+62.5%</td><td>FY26 Q3 어닝콜 + 커넥터</td></tr>
+        <tr><td>Q4 FY26 <span class="mono" style="color:var(--ink-3)">2026-01</span></td><td class="num">$68,127M</td><td class="num up">+73.2%</td><td>커넥터 (Alpha Vantage)</td></tr>
+        <tr><td>Q1 FY27 <span class="mono" style="color:var(--ink-3)">2026-04</span></td><td class="num">$81,615M</td><td class="num up">+85.2%</td><td>8-K 원문 (직접 검증)</td></tr>
+        <tr><td><b>Q2 FY27</b> <span class="mono" style="color:var(--ink-3)">2026-07</span></td><td class="num"><b>$96,221M</b></td><td class="num up"><b>+105.8%</b></td><td>8-K 원문 (직접 검증)</td></tr>
+        <tr><td>Q3 FY27 <span class="mono" style="color:var(--note)">가이던스</span></td><td class="num">$108,000M</td><td class="num">—</td><td>8-K 아웃룩 (±2%)</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="call ok">
+    <div class="call-t">검증됨</div>
+    <p>Colette Kress의 <i>"growth accelerated for the fourth consecutive quarter"</i> 발언은 <b>수치로 확인됩니다.</b> 전년비 성장률이 <code>55.6 → 62.5 → 73.2 → 85.2 → 105.8</code>로 정확히 4개 분기 연속 가속했습니다. S2의 헤드라인은 이 사실에 근거합니다.</p>
+  </div>
+
+  <h3>손익·재무</h3>
+  <div class="tbl-scroll">
+    <table>
+      <thead><tr><th>항목</th><th class="num">Q2 FY27</th><th class="num">비교</th></tr></thead>
+      <tbody>
+        <tr><td>데이터센터 매출</td><td class="num">$89.0B</td><td class="num">QoQ +18% · YoY +117%</td></tr>
+        <tr><td>— 하이퍼스케일</td><td class="num">$49B</td><td class="num">QoQ +13%</td></tr>
+        <tr><td>— ACIE</td><td class="num">$40B</td><td class="num">QoQ +25% · YoY +138%</td></tr>
+        <tr><td>엣지 컴퓨팅</td><td class="num">$7.2B</td><td class="num">QoQ +13% · YoY +27%</td></tr>
+        <tr><td>매출총이익률 (GAAP·Non-GAAP)</td><td class="num">75.0%</td><td class="num">전분기 74.9% / 75.0%</td></tr>
+        <tr><td>희석 EPS (GAAP)</td><td class="num">$2.46</td><td class="num">YoY +128%</td></tr>
+        <tr><td>희석 EPS (Non-GAAP)</td><td class="num">$2.22</td><td class="num">YoY +120%</td></tr>
+        <tr><td>잉여현금흐름</td><td class="num">$21.3B</td><td class="num">전분기 $48.6B</td></tr>
+        <tr><td>주주환원</td><td class="num">$26.0B</td><td class="num">자사주 $20B + 배당 $6B</td></tr>
+        <tr><td>재고</td><td class="num">$31.6B</td><td class="num">6개월 전 $21.4B</td></tr>
+        <tr><td>매출채권</td><td class="num">$63.1B</td><td class="num">6개월 전 $38.5B</td></tr>
+        <tr><td>장기부채</td><td class="num">$32.4B</td><td class="num">6개월 전 $7.5B</td></tr>
+        <tr><td>비상장증권</td><td class="num">$51.2B</td><td class="num">6개월 전 $22.3B</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>가이던스 · 마진 궤적</h3>
+  <div class="tbl-scroll">
+    <table>
+      <thead><tr><th>구간</th><th class="num">매출총이익률</th><th>비고</th></tr></thead>
+      <tbody>
+        <tr><td>Q2 FY27 (실적)</td><td class="num">75.0%</td><td>전분기와 유사한 제품 믹스</td></tr>
+        <tr><td>Q3 FY27 (가이던스)</td><td class="num">74.0%</td><td>±50bp</td></tr>
+        <tr><td>Q4 FY27 (전망)</td><td class="num">71–72%</td><td><b>저점</b> — 메모리 가격</td></tr>
+        <tr><td>FY2028 (전망)</td><td class="num">72–73%</td><td>Q1 가격인상 반영 후</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="mono" style="font-size:13px;color:var(--ink-3)">기타: 1GW당 매출 기회 Hopper $18B → Blackwell $25B → Vera Rubin $40B · FY2028 매출 +70%(preliminary) · 수요 기준 성장률 약 100% · 프론티어 랩 투자 약 $50B · 제3자 자본 $500B+ · OpenAI 약 12GW · NeoCloud 설치용량 3GW → 8GW · 하이퍼스케일 CapEx 2026 약 $800B → 2027 $1.3T</p>
+</section>
+
+<!-- ============ 4. 슬라이드 명세 ============ -->
+<section>
+  <div class="sec-head"><span class="sec-num">04</span><h2>슬라이드별 명세</h2></div>
+  <p>각 슬라이드는 아트보드 배치(좌)와 제작 스펙(우)으로 구성됩니다. 아트보드는 블록 위치를 나타내는 와이어프레임이며 최종 디자인이 아닙니다.</p>
+
+  <!-- S1 -->
+  <div class="slide">
+    <div class="board-col">
+      <div class="board">
+        <div class="idx">01 / 10</div>
+        <div class="blk viz">실사 배경<br>데이터센터 랙 조명</div>
+        <div class="blk hd">이제, 컴퓨트가<br>곧 매출이다</div>
+        <div class="blk sm">Jensen Huang · 2026.8.26</div>
+        <div class="blk q">매출 $96.2B · +106% →</div>
+        <div class="foot">SEC 8-K + 어닝콜</div>
+      </div>
+      <div class="board-cap">표지</div>
+    </div>
+    <div>
+      <div class="slide-role">표지 · 스크롤 정지</div>
+      <h3>이제, 컴퓨트가 곧 매출이다</h3>
+      <dl class="spec">
+        <dt>목표</dt><dd>3초 안에 스와이프 유발. 실적 요약이 아니라 <b>긴장</b>을 건다</dd>
+        <dt>헤드라인</dt><dd><b>A안(추천)</b> 「이제, 컴퓨트가 곧 매출이다」<br><b>B안</b> 「수요는 100%, 공급은 70%」</dd>
+        <dt>킥커</dt><dd>매출 $96.2B · +106% — 그런데 회사가 강조한 건 성장률이 아니었다 →</dd>
+        <dt>비주얼</dt><dd><b>실사 배경</b> — 어두운 데이터센터 랙 조명 열 또는 반도체 다이 매크로. 상하 다크 그라디언트로 텍스트 대비 확보. <b>차트 없음, 타이포 주도</b></dd>
+        <dt>인물</dt><dd>얼굴 이미지 없음. 인용은 텍스트로만</dd>
+        <dt>출처</dt><dd class="mono" style="font-size:12.5px">NVIDIA FY2027 Q2 · SEC 8-K + 어닝콜 (2026.8.26 ET)</dd>
+      </dl>
+    </div>
+  </div>
+
+  <!-- S2 -->
+  <div class="slide">
+    <div class="board-col">
+      <div class="board">
+        <div class="idx">02 / 10</div>
+        <div class="blk hd">4개 분기 연속,<br>성장이 빨라졌다</div>
+        <div class="blk sm">KPI 4칸 · 2×2 그리드</div>
+        <div class="blk viz">매출 바 + 전년비 라인<br>5분기 + 가이던스</div>
+        <div class="bar"><i style="width:65%"></i></div>
+        <div class="foot">SEC 8-K · 커넥터 검증</div>
+      </div>
+      <div class="board-cap">총괄 실적</div>
+    </div>
+    <div>
+      <div class="slide-role">본문 01 · 총괄 실적</div>
+      <h3>4개 분기 연속, 성장이 빨라졌다</h3>
+      <dl class="spec">
+        <dt>주 비주얼</dt><dd><b>매출 막대 + 전년비 성장률 라인 결합 차트</b> (5분기 + 가이던스 1). 라인이 우상향 가속하는 형태가 헤드라인의 근거 — 아래 실제 렌더 참조</dd>
+        <dt>보조</dt><dd>KPI 2×2 — 매출 <code>$96.2B (+106%)</code> / 데이터센터 <code>$89.0B (+117%)</code> / 매출총이익률 <code>75.0%</code> / Non-GAAP EPS <code>$2.22 (+120%)</code></dd>
+        <dt>인용</dt><dd class="quote">"record revenue, operating income, and EPS" — <b>Colette Kress</b></dd>
+        <dt>데이터</dt><dd>데이터 대장 §03 분기 매출 시계열 전량</dd>
+      </dl>
+      <div class="chartbox">
+        <svg viewBox="0 0 620 250" role="img" aria-label="분기 매출과 전년비 성장률 추이">
+          <g font-family="IBM Plex Mono, monospace">
+            <!-- bars -->
+            <g>
+              <rect x="26"  y="152" width="52" height="62" rx="2" fill="#2F4A2E"/>
+              <rect x="122" y="134" width="52" height="80" rx="2" fill="#3A5C33"/>
+              <rect x="218" y="118" width="52" height="96" rx="2" fill="#476F38"/>
+              <rect x="314" y="99"  width="52" height="115" rx="2" fill="#5A8F2E"/>
+              <rect x="410" y="79"  width="52" height="135" rx="2" fill="#76B900"/>
+              <rect x="506" y="62"  width="52" height="152" rx="2" fill="none" stroke="#76B900" stroke-width="1.5" stroke-dasharray="4 3"/>
+            </g>
+            <!-- value labels -->
+            <g fill="#F2F5F7" font-size="12" font-weight="500" text-anchor="middle">
+              <text x="52"  y="145">46.7</text>
+              <text x="148" y="127">57.0</text>
+              <text x="244" y="111">68.1</text>
+              <text x="340" y="92">81.6</text>
+              <text x="436" y="72">96.2</text>
+              <text x="532" y="55" fill="#A9D95C">108</text>
+            </g>
+            <!-- yoy line -->
+            <polyline points="52,42 148,38 244,32 340,25 436,14" fill="none" stroke="#F5A623" stroke-width="2" stroke-linejoin="round"/>
+            <g fill="#F5A623">
+              <circle cx="52" cy="42" r="3"/><circle cx="148" cy="38" r="3"/><circle cx="244" cy="32" r="3"/>
+              <circle cx="340" cy="25" r="3"/><circle cx="436" cy="14" r="3.8"/>
+            </g>
+            <g fill="#F5A623" font-size="10.5" text-anchor="middle">
+              <text x="52"  y="33">+56%</text>
+              <text x="148" y="29">+63%</text>
+              <text x="244" y="23">+73%</text>
+              <text x="340" y="16">+85%</text>
+              <text x="436" y="6" font-weight="600" font-size="12">+106%</text>
+            </g>
+            <!-- axis -->
+            <line x1="18" y1="214" x2="600" y2="214" stroke="#2A3538" stroke-width="1"/>
+            <g fill="#6E7B85" font-size="10" text-anchor="middle">
+              <text x="52"  y="230">Q2 FY26</text>
+              <text x="148" y="230">Q3 FY26</text>
+              <text x="244" y="230">Q4 FY26</text>
+              <text x="340" y="230">Q1 FY27</text>
+              <text x="436" y="230" fill="#F2F5F7" font-weight="500">Q2 FY27</text>
+              <text x="532" y="230">Q3 FY27E</text>
+            </g>
+            <text x="18" y="246" fill="#4E5A61" font-size="9">단위: 십억 달러 · 주황 라인 = 전년비 성장률</text>
+          </g>
+        </svg>
+      </div>
+      <div class="chart-lbl">S2 주 비주얼 — 실제 수치로 렌더한 시안</div>
+    </div>
+  </div>
+
+  <!-- S3 -->
+  <div class="slide">
+    <div class="board-col">
+      <div class="board">
+        <div class="idx">03 / 10</div>
+        <div class="blk hd">AWS가 GPU를<br>200만 개 더 산다</div>
+        <div class="blk viz">2,000,000<br>초대형 숫자</div>
+        <div class="blk sm">CapEx 2단 막대 $800B → $1.3T</div>
+        <div class="blk q">"more compute drives more revenue"</div>
+        <div class="foot">어닝콜 준비발언</div>
+      </div>
+      <div class="board-cap">하이퍼스케일</div>
+    </div>
+    <div>
+      <div class="slide-role">본문 02 · 데이터센터 ①</div>
+      <h3>AWS가 GPU를 200만 개 더 산다</h3>
+      <dl class="spec">
+        <dt>주 비주얼</dt><dd>초대형 숫자 타이포 <code>2,000,000</code> + 캡션 <i>이번 분기 ~ FY2029 2분기 배치 · Vera CPU 동반</i></dd>
+        <dt>보조</dt><dd>상위 5개 하이퍼스케일러 CapEx 2단 막대 <code>2026 약 $800B → 2027 $1.3T</code> · 배지 <code>클라우드 백로그 $2조 초과</code></dd>
+        <dt>본문</dt><dd>하이퍼스케일 매출 $49B, QoQ +13% (Blackwell 견인)</dd>
+        <dt>인용</dt><dd class="quote">"more compute drives more revenue" — 고객사 실적이 매출 가속·마진 확대로 증명됐다는 논리</dd>
+        <dt>이미지</dt><dd>배경에 대규모 서버홀 실사 실루엣(불투명도 10%) · AWS 로고 사용 가능</dd>
+      </dl>
+    </div>
+  </div>
+
+  <!-- S4 -->
+  <div class="slide">
+    <div class="board-col">
+      <div class="board">
+        <div class="idx">04 / 10</div>
+        <div class="blk hd">모두가 보지 못하는<br>나머지 절반</div>
+        <div class="blk viz">분할 스택 바<br>$49B ｜ $40B</div>
+        <div class="blk sm">NeoCloud 3GW → 8GW</div>
+        <div class="blk q" style="color:#A9D95C">🇰🇷 SK하이닉스 · SKT · NAVER · LG · 현대차</div>
+        <div class="foot">어닝콜 + 8-K 하이라이트</div>
+      </div>
+      <div class="board-cap">ACIE</div>
+    </div>
+    <div>
+      <div class="slide-role">본문 03 · 데이터센터 ②</div>
+      <h3>모두가 보지 못하는 나머지 절반</h3>
+      <dl class="spec">
+        <dt>주 비주얼</dt><dd><b>분할 스택 바 1개</b> — 데이터센터 $89B를 하이퍼스케일 $49B / ACIE $40B로 양분. 성장률 배지 <code>QoQ +13%</code> vs <code>QoQ +25% · YoY +138%</code> — ACIE 쪽을 그린 강조</dd>
+        <dt>보조</dt><dd>NeoCloud 설치용량 게이지 <code>3GW (2025말) → 8GW (2026말)</code></dd>
+        <dt>인용</dt><dd class="quote">"그건 그림의 절반이다. 나머지 절반이 ACIE인데 <b>모두에게 보이지 않는다</b>" / "사업의 약 절반이며 연 100% 성장" — <b>Jensen Huang</b></dd>
+        <dt>한국</dt><dd><b>이 장의 후킹 포인트.</b> SK하이닉스 차세대 메모리 다년 파트너십 · SK텔레콤·NAVER·브룩필드 기가와트급 소버린 AI · LG·현대차그룹 · 삼성전자 cuLitho 20배 — 로고 스트립으로 처리</dd>
+      </dl>
+    </div>
+  </div>
+
+  <!-- S5 -->
+  <div class="slide">
+    <div class="board-col">
+      <div class="board">
+        <div class="idx">05 / 10</div>
+        <div class="blk hd">1GW당 매출:<br>$18B → $40B</div>
+        <div class="blk viz">계단 차트<br>18 → 25 → 40 → ?</div>
+        <div class="blk sm">4칩 스트립 · 제품 포트폴리오</div>
+        <div class="blk q">"완벽한 답은 GW당 무한대"</div>
+        <div class="foot">어닝콜 Q&amp;A (Rakers)</div>
+      </div>
+      <div class="board-cap">플랫폼 · 제품</div>
+    </div>
+    <div>
+      <div class="slide-role">본문 04 · 통합 슬라이드</div>
+      <h3>1GW당 매출이 $18B에서 $40B로</h3>
+      <dl class="spec">
+        <dt>주 비주얼</dt><dd><b>계단 차트</b> — Hopper <code>18</code> / Blackwell <code>25</code> / <b>Vera Rubin <code>40</code></b> ($B per GW). 우측 끝에 점선 화살표 + <i>"그 다음은 더 높다"</i></dd>
+        <dt>보조</dt><dd>하단 <b>4칩 스트립</b> (아이콘 + 숫자만)<br><code>Vera Rubin 30× 처리량/MW</code> · <code>네트워킹 QoQ +18%</code> · <code>Vera CPU FY28 2배↑</code> · <code>Groq 3 LPX 토큰/초 4×</code></dd>
+        <dt>인용</dt><dd class="quote">"완벽한 답은 GW당 무한대다" · Vera Rubin은 "사상 최속 램프" — <b>Jensen Huang</b></dd>
+        <dt>이미지</dt><dd>Vera Rubin 랙 비주얼을 레퍼런스 참고해 오리지널 재생성 · 캐러셀 팔레트에 맞춤</dd>
+      </dl>
+      <div class="chartbox">
+        <svg viewBox="0 0 620 190" role="img" aria-label="세대별 1기가와트당 매출 기회">
+          <g font-family="IBM Plex Mono, monospace">
+            <rect x="60"  y="118" width="96" height="36" rx="2" fill="#3A5C33"/>
+            <rect x="196" y="93"  width="96" height="61" rx="2" fill="#5A8F2E"/>
+            <rect x="332" y="52"  width="96" height="102" rx="2" fill="#76B900"/>
+            <rect x="468" y="26"  width="96" height="128" rx="2" fill="none" stroke="#76B900" stroke-width="1.5" stroke-dasharray="4 3"/>
+            <g fill="#F2F5F7" font-size="20" font-weight="600" text-anchor="middle">
+              <text x="108" y="111">$18B</text>
+              <text x="244" y="86">$25B</text>
+              <text x="380" y="45">$40B</text>
+            </g>
+            <text x="516" y="19" fill="#A9D95C" font-size="15" font-weight="500" text-anchor="middle">그 다음은?</text>
+            <line x1="46" y1="154" x2="590" y2="154" stroke="#2A3538"/>
+            <g fill="#6E7B85" font-size="11.5" text-anchor="middle">
+              <text x="108" y="172">Hopper</text>
+              <text x="244" y="172">Blackwell</text>
+              <text x="380" y="172" fill="#F2F5F7" font-weight="500">Vera Rubin</text>
+              <text x="516" y="172">차세대</text>
+            </g>
+            <text x="46" y="188" fill="#4E5A61" font-size="9">1기가와트당 NVIDIA 매출 기회</text>
+          </g>
+        </svg>
+      </div>
+      <div class="chart-lbl">S5 주 비주얼 — 계단 차트 시안</div>
+      <div class="call note">
+        <div class="call-t">과밀 주의</div>
+        <p><b>정보 과밀 위험 1순위 슬라이드입니다.</b> 계단 차트 1개 + 칩 4개로 엄격히 제한하고, 제품 설명 문장은 추가하지 않습니다.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- S6 -->
+  <div class="slide">
+    <div class="board-col">
+      <div class="board">
+        <div class="idx">06 / 10</div>
+        <div class="blk hd">"순환출자 아니냐"<br>회사가 먼저 꺼냈다</div>
+        <div class="blk viz amber">자금 흐름 다이어그램<br>4개 노드 · 순환 고리 강조</div>
+        <div class="blk sm">OpenAI 약 12GW · 내년 매출의 1/4</div>
+        <div class="blk q">"We see it differently"</div>
+        <div class="foot">어닝콜 준비발언 + Q&amp;A</div>
+      </div>
+      <div class="board-cap">프론티어 랩</div>
+    </div>
+    <div>
+      <div class="slide-role">본문 05 · 파이낸싱</div>
+      <h3>"순환출자 아니냐" — 회사가 먼저 꺼냈다</h3>
+      <dl class="spec">
+        <dt>주 비주얼</dt><dd><b>자금 흐름 다이어그램</b>(차트 아님, 관계도)<br><code>NVIDIA ─투자 $50B→ 프론티어 AI랩</code><br><code>NVIDIA + 6개 캐피털 ─$500B+→ AI 인프라</code><br><code>SB Energy ─부지·전력 4.25GW→ OpenAI</code><br><code>AI랩 ─컴퓨트 구매→ NVIDIA</code> ← <b>앰버 굵은 선</b></dd>
+        <dt>배지</dt><dd><code>OpenAI 약 12GW (2030년까지)</code> · <code>내년 매출의 약 1/4</code></dd>
+        <dt>인용</dt><dd class="quote">"일부는 이를 circular financing이라 부를 것이다. <b>우리는 다르게 본다</b>" — <b>Colette Kress</b></dd>
+        <dt>반박</dt><dd><b>3줄 병기 필수</b> — 플랫폼 재배치 가능 / 투자액은 예상 FCF의 일부 / 투자등급 고객이 소비</dd>
+        <dt>톤</dt><dd>단정 금지. <b>사실 + 회사 반박</b>을 반드시 함께 노출</dd>
+      </dl>
+    </div>
+  </div>
+
+  <!-- S7 -->
+  <div class="slide">
+    <div class="board-col">
+      <div class="board">
+        <div class="idx">07 / 10</div>
+        <div class="blk hd">75% → 71%<br>마진을 낮춰 잡았다</div>
+        <div class="blk viz amber">마진 궤적 라인<br>저점 마커 · 밴드</div>
+        <div class="blk sm">원인 라벨: 메모리 가격</div>
+        <div class="blk q">중국: DC 매출 1% 미만 · 가이던스 미반영</div>
+        <div class="foot">어닝콜 아웃룩 섹션</div>
+      </div>
+      <div class="board-cap">수익성</div>
+    </div>
+    <div>
+      <div class="slide-role">본문 06 · 마진 리셋</div>
+      <h3>75% → 71%, 마진 전망을 리셋했다</h3>
+      <dl class="spec">
+        <dt>주 비주얼</dt><dd><b>마진 궤적 라인 차트</b> — <code>75.0% → 74.0% → 71~72% → 72~73%</code>. 전망 구간은 음영 밴드, <b>Q4 저점을 앰버 마커</b>로. 저점 바로 위에 라벨 <b>"메모리 가격"</b></dd>
+        <dt>보조</dt><dd>하단 스트립 — <code>중국: DC 매출 1% 미만 · 가이던스 미반영</code></dd>
+        <dt>인용</dt><dd class="quote">"메모리에서 <b>극단적 가격 조건</b>을 겪고 있다… <b>미결 질문으로 남겨두기보다 솔직하게 말하고 싶다</b>" — <b>Colette Kress</b></dd>
+        <dt>방어논리</dt><dd>"메모리 부족은 AI 빌드아웃 자체가 만든 것" 1줄 병기</dd>
+        <dt>한국</dt><dd>메모리 가격 급등의 반대편에 국내 3사가 있다는 앵글은 강력하나, <b>회사 발언 범위를 넘는 주가·수혜 해석은 쓰지 않습니다.</b> SK하이닉스 파트너십(사실)까지만</dd>
+      </dl>
+      <div class="chartbox">
+        <svg viewBox="0 0 620 200" role="img" aria-label="매출총이익률 궤적 전망">
+          <g font-family="IBM Plex Mono, monospace">
+            <!-- band for forecast -->
+            <path d="M330 92 L450 128 L570 110 L570 138 L450 148 L330 100 Z" fill="#F5A623" opacity=".16"/>
+            <!-- actual line -->
+            <polyline points="70,52 210,72 330,96" fill="none" stroke="#76B900" stroke-width="2.5" stroke-linejoin="round"/>
+            <polyline points="330,96 450,138 570,124" fill="none" stroke="#F5A623" stroke-width="2.5" stroke-dasharray="5 4" stroke-linejoin="round"/>
+            <circle cx="70" cy="52" r="4.5" fill="#76B900"/>
+            <circle cx="210" cy="72" r="4" fill="#76B900"/>
+            <circle cx="330" cy="96" r="4" fill="#F5A623"/>
+            <circle cx="450" cy="138" r="6" fill="#F5A623"/>
+            <circle cx="570" cy="124" r="4" fill="#F5A623"/>
+            <g fill="#F2F5F7" font-size="14" font-weight="600" text-anchor="middle">
+              <text x="70" y="40">75.0%</text>
+              <text x="210" y="60">74.9%</text>
+              <text x="330" y="84">74.0%</text>
+              <text x="450" y="168" fill="#F5A623">71–72%</text>
+              <text x="570" y="112">72–73%</text>
+            </g>
+            <text x="450" y="184" fill="#F5A623" font-size="11" font-weight="500" text-anchor="middle">↑ 메모리 가격</text>
+            <g fill="#6E7B85" font-size="10.5" text-anchor="middle">
+              <text x="70" y="196">Q1 FY27</text>
+              <text x="210" y="196">Q2 FY27</text>
+              <text x="330" y="196">Q3E</text>
+              <text x="570" y="196">FY2028E</text>
+            </g>
+          </g>
+        </svg>
+      </div>
+      <div class="chart-lbl">S7 주 비주얼 — 마진 궤적 시안 (실선 = 실적, 점선 = 전망)</div>
+    </div>
+  </div>
+
+  <!-- S8 -->
+  <div class="slide">
+    <div class="board-col">
+      <div class="board">
+        <div class="idx">08 / 10</div>
+        <div class="blk hd">사상 최대 환원,<br>달라진 재무제표</div>
+        <div class="blk viz">좌우 2분할<br>$26.0B ｜ 슬로프 4줄</div>
+        <div class="blk sm">회사 설명 병기 · 재고=Vera Rubin 대비</div>
+        <div class="foot">8-K 재무제표</div>
+      </div>
+      <div class="board-cap">주주환원·재무</div>
+    </div>
+    <div>
+      <div class="slide-role">본문 07 · 신규 독립</div>
+      <h3>사상 최대 환원, 그리고 달라진 재무제표</h3>
+      <dl class="spec">
+        <dt>주 비주얼</dt><dd><b>좌우 2분할 대비 레이아웃</b><br><b>좌(그린)</b> <code>$26.0B 환원</code> · <code>FCF의 60% (YTD)</code> · <code>분기 FCF $21.3B</code> · <code>자사주 한도 $99.0B 잔여</code><br><b>우(앰버) "관찰 포인트"</b> — 슬로프 4줄: 재고 <code>$21.4B→$31.6B</code> · 매출채권 <code>$38.5B→$63.1B</code> · 장기부채 <code>$7.5B→$32.4B</code> · 비상장증권 <code>$22.3B→$51.2B</code> + 배지 <code>DSO 60일</code></dd>
+        <dt>병기</dt><dd><b>필수</b> — 재고는 Vera Rubin 출시 대비, DSO는 투자등급 대형 고객 결제조건 연장(회사 설명)</dd>
+        <dt>톤</dt><dd>"우려"로 단정하지 않고 <b>"관찰 포인트"</b>로 표기</dd>
+      </dl>
+    </div>
+  </div>
+
+  <!-- S9 -->
+  <div class="slide">
+    <div class="board-col">
+      <div class="board">
+        <div class="idx">09 / 10</div>
+        <div class="blk hd">사상 처음으로<br>1년 앞을 말했다</div>
+        <div class="blk viz">수요 vs 공급 갭<br>빗금 처리</div>
+        <div class="blk sm">Q3 $108.0B · Vera Rubin 20%</div>
+        <div class="blk q">"모두가 같은 뷰를 보게 하고 싶었다"</div>
+        <div class="foot">어닝콜 Q&amp;A (Moore)</div>
+      </div>
+      <div class="board-cap">가이던스</div>
+    </div>
+    <div>
+      <div class="slide-role">본문 08 · 가이던스</div>
+      <h3>사상 처음으로, 1년 앞을 말했다</h3>
+      <dl class="spec">
+        <dt>주 비주얼</dt><dd><b>수요 vs 공급 갭 차트</b> — 나란한 두 막대 <code>수요 ≈ 100%</code> / <code>공급 가능 70%</code>, 그 사이를 <b>빗금 갭</b>으로. 갭 라벨 <i>"팔 수 있었지만 못 파는 구간"</i></dd>
+        <dt>보조</dt><dd><code>Q3 매출 $108.0B ±2%</code> · <code>Vera Rubin이 Q3 DC 매출의 약 20%</code> · <code>FY2028 +70%</code></dd>
+        <dt>표기</dt><dd><b>FY2028 +70%에 "preliminary" 표기 필수</b></dd>
+        <dt>인용</dt><dd class="quote">"수요는 70%보다 훨씬 크지만, 공급이 자신 있게 전달 가능한 수준이 70%" · "<b>고객·주주·공급망 모두가 같은 뷰를 보게 하고 싶었다</b>" — <b>Jensen Huang</b></dd>
+      </dl>
+      <div class="chartbox">
+        <svg viewBox="0 0 620 190" role="img" aria-label="수요와 공급 가능 성장률의 격차">
+          <defs>
+            <pattern id="hatch" width="7" height="7" patternTransform="rotate(45)" patternUnits="userSpaceOnUse">
+              <line x1="0" y1="0" x2="0" y2="7" stroke="#F5A623" stroke-width="1.6" opacity=".55"/>
+            </pattern>
+          </defs>
+          <g font-family="IBM Plex Mono, monospace">
+            <rect x="110" y="30" width="130" height="118" rx="3" fill="#2F4A2E"/>
+            <rect x="110" y="30" width="130" height="118" rx="3" fill="none" stroke="#76B900" stroke-width="1.5"/>
+            <rect x="380" y="65" width="130" height="83" rx="3" fill="#76B900"/>
+            <rect x="380" y="30" width="130" height="35" rx="3" fill="url(#hatch)"/>
+            <rect x="380" y="30" width="130" height="35" rx="3" fill="none" stroke="#F5A623" stroke-width="1.3" stroke-dasharray="4 3"/>
+            <g fill="#F2F5F7" font-weight="600" text-anchor="middle">
+              <text x="175" y="22" font-size="17">≈ 100%</text>
+              <text x="445" y="110" font-size="17">70%</text>
+            </g>
+            <text x="445" y="22" fill="#F5A623" font-size="12" font-weight="500" text-anchor="middle">갭 30%p</text>
+            <g fill="#6E7B85" font-size="11.5" text-anchor="middle">
+              <text x="175" y="168">고객 포캐스트 기준 수요</text>
+              <text x="445" y="168" fill="#F2F5F7" font-weight="500">공급 가능 · 가이던스</text>
+            </g>
+            <text x="310" y="186" fill="#F5A623" font-size="10" text-anchor="middle">빗금 = 팔 수 있었지만 못 파는 구간</text>
+          </g>
+        </svg>
+      </div>
+      <div class="chart-lbl">S9 주 비주얼 — 수요·공급 갭 시안</div>
+    </div>
+  </div>
+
+  <!-- S10 -->
+  <div class="slide">
+    <div class="board-col">
+      <div class="board">
+        <div class="idx">10 / 10</div>
+        <div class="blk hd">논점은 수요에서<br>공급과 마진으로</div>
+        <div class="blk viz">좌우 4:4 카드<br>기대 ｜ 우려</div>
+        <div class="blk sm">투자 권유 아님 고지</div>
+        <div class="blk q">저장해두고 다음 분기에 다시 보기 →</div>
+        <div class="foot">SEC 8-K · 어닝콜 2026.8.26</div>
+      </div>
+      <div class="board-cap">마무리</div>
+    </div>
+    <div>
+      <div class="slide-role">마무리 · 중립</div>
+      <h3>논점은 수요에서, 공급과 마진으로 옮겨갔다</h3>
+      <dl class="spec">
+        <dt>주 비주얼</dt><dd><b>좌우 대칭 4:4 카드</b> (저울 모티프)</dd>
+        <dt>기대</dt><dd>성장 가속(4분기 연속, 수치 검증) / 수요 다변화(ACIE 절반·연 100%) / GW당 TAM $18→$40B / 첫 1년 가이던스</dd>
+        <dt>우려</dt><dd>마진 저점 71% / 공급 병목 FY28말까지 / AI랩 익스포저 매출의 1/4 / 재무제표 변화</dd>
+        <dt>클로징</dt><dd>중립 1줄로 마감. <b>어느 쪽 결론도 내지 않음</b></dd>
+        <dt>고지</dt><dd><b>필수</b> — "본 콘텐츠는 공개 자료 정리이며 투자 권유가 아닙니다" + 출처</dd>
+        <dt>CTA</dt><dd>저장해두고 다음 분기에 다시 보기 →</dd>
+      </dl>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 5. 이미지 방침 ============ -->
+<section>
+  <div class="sec-head"><span class="sec-num">05</span><h2>이미지·로고 방침</h2></div>
+
+  <div class="tbl-scroll">
+    <table>
+      <thead><tr><th>유형</th><th>방침</th><th>적용</th></tr></thead>
+      <tbody>
+        <tr><td><b>비인물 실사</b></td><td class="up">사용</td><td>데이터센터 랙·전력 인프라·반도체 매크로·물류 로봇. 생성 이미지로 제작하고 다크 오버레이 위 합성. S1·S3 배경</td></tr>
+        <tr><td><b>인물 실사</b></td><td style="color:var(--redline);font-weight:500">미사용</td><td>실존 인물의 생성 이미지는 만들지 않음. 인용은 타이포그래피로만 처리</td></tr>
+        <tr><td><b>기업 로고</b></td><td class="up">사용</td><td>NVIDIA·AWS·SK하이닉스 등 공식 브랜드 마크. 논평·비교 목적의 편집적 사용</td></tr>
+        <tr><td><b>제품 비주얼</b></td><td class="up">재생성</td><td>Vera Rubin 랙 등은 레퍼런스를 참고해 오리지널로 재생성. 원본 파일 복제 대신 캐러셀 팔레트에 맞춰 새로 제작</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="mono" style="font-size:13px;color:var(--ink-3)">제품 비주얼을 복제 대신 재생성하는 방식은 저작권 측면에서도 안전하고, 10장 전체의 톤을 하나로 묶는 데도 유리합니다.</p>
+</section>
+
+<!-- ============ 6. 파이프라인 ============ -->
+<section>
+  <div class="sec-head"><span class="sec-num">06</span><h2>제작 파이프라인</h2></div>
+  <ol>
+    <li><b>배경 이미지 생성</b> — S1·S3·S5용 비인물 실사 3~4컷. 다크 톤, 저채도</li>
+    <li><b>슬라이드 HTML 작성</b> — 10장을 각각 1080×1350 문서로. 차트는 인라인 SVG로 직접 작성해 수치를 정확히 통제</li>
+    <li><b>PNG 렌더</b> — 사전 설치된 Chromium(Playwright)으로 <code>deviceScaleFactor: 1</code>, 뷰포트 1080×1350 캡처</li>
+    <li><b>검수</b> — 아래 체크리스트</li>
+    <li><b>전달</b> — PNG 10장 + 미리보기 웹 페이지</li>
+  </ol>
+
+  <h3>출고 전 체크리스트</h3>
+  <ul class="checklist">
+    <li>10장 전부 정확히 1080×1350인가 (한 장이라도 다르면 전체가 크롭됨)</li>
+    <li>하단 160px 세이프존에 핵심 정보가 걸치지 않는가</li>
+    <li>가장 작은 글자가 28px 이상인가</li>
+    <li>모든 수치가 데이터 대장 §03과 일치하는가</li>
+    <li>FY2028 +70%에 preliminary 표기가 있는가</li>
+    <li>S6·S8에 회사 측 설명이 병기되었는가</li>
+    <li>S10에 투자 권유 아님 고지와 출처가 있는가</li>
+    <li>인물 이미지가 사용되지 않았는가</li>
+    <li>10장 모두 하단 출처 1줄이 있는가</li>
+  </ul>
+</section>
+
+<!-- ============ 7. 캡션 ============ -->
+<section>
+  <div class="sec-head"><span class="sec-num">07</span><h2>캡션 초안</h2></div>
+  <div class="call">
+    <div class="call-t">본문 캡션</div>
+    <p>엔비디아가 2분기 매출 <b>962억 달러</b>를 발표했습니다. 전년 대비 106% 성장, 4개 분기 연속 성장 가속입니다.</p>
+    <p>그런데 이날 콘퍼런스콜에서 회사가 가장 힘줘 말한 건 성장률이 아니었습니다. <b>"제약은 수요가 아니라 공급"</b> — 창사 이래 처음으로 1년 앞 가이던스(FY2028 +70%)를 내놓으면서, 그것도 공급에 묶인 숫자라고 밝혔죠.</p>
+    <p>동시에 <b>마진 전망은 낮춰 잡았습니다.</b> 메모리 가격 때문입니다.</p>
+    <p>SEC 원문과 어닝콜 전문을 발표 순서대로 10장에 정리했습니다. 마지막 장에 기대와 우려를 같이 담았습니다. →</p>
+    <p class="mono" style="font-size:13px">※ 공개 자료 정리이며 투자 권유가 아닙니다.<br>출처: NVIDIA SEC 8-K, FY27 Q2 어닝콜 (2026.8.26 ET)</p>
+  </div>
+  <p class="mono" style="font-size:13px;color:var(--ink-2)">#엔비디아 #NVDA #엔비디아실적 #어닝콜 #미국주식 #반도체 #AI인프라 #베라루빈 #데이터센터 #SK하이닉스 #실적발표 #해외주식 #주식공부</p>
+</section>
+
+<p class="foot-note">
+  근거 자료: <code>research/earnings/NVDA_FY2027Q2_earnings_release.md</code> (SEC 8-K 전문) · <code>research/earnings/NVDA_FY2027Q2_earnings_call_transcript.md</code> (어닝콜 전문). Q4 FY26 매출은 커넥터 조회값이며 검증된 4개 분기와 교차 대조를 마쳤습니다. 어닝콜은 회사 감수본이 아닌 실시간 전사본이므로 일부 고유명사 표기에 오기가 있을 수 있습니다.
+</p>
+
+</div>
