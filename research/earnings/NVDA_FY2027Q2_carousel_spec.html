@@ -144,6 +144,32 @@
   .quote b{font-style:normal; color:var(--ink); font-weight:600}
   code{font-family:"IBM Plex Mono",monospace; font-size:.9em; background:var(--surface-2); padding:1.5px 5px; border-radius:2px; white-space:nowrap}
 
+  /* ---------- archetype badge ---------- */
+  .arch{
+    display:inline-block; font-family:"IBM Plex Mono",monospace; font-size:10.5px; font-weight:600;
+    letter-spacing:.06em; padding:3px 8px; border-radius:2px; margin-left:9px;
+    background:var(--surface-2); color:var(--ink-2); border:1px solid var(--rule);
+    text-transform:none; vertical-align:middle;
+  }
+
+  /* ---------- layout pattern catalog ---------- */
+  .pat-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(122px,1fr)); gap:14px; margin:24px 0 8px}
+  .pat{border:1px solid var(--rule); border-radius:4px; background:var(--surface); overflow:hidden}
+  .pat .cv{aspect-ratio:4/5; background:linear-gradient(168deg,#0B0F14,#131C23); padding:9px; display:flex; flex-direction:column; gap:4px}
+  .pat .u{background:rgba(242,245,247,.15); border-radius:1.5px; flex:none}
+  .pat .u.g{background:#76B900}
+  .pat .u.a{background:#F5A623}
+  .pat .u.dim{background:rgba(242,245,247,.07)}
+  .pat .row{display:flex; gap:4px; flex:none}
+  .pat .row.f{flex:1}
+  .pat .col{display:flex; flex-direction:column; gap:4px; flex:1}
+  .pat .grow{flex:1}
+  .pat .lbl{padding:7px 9px 9px; font-family:"IBM Plex Mono",monospace; font-size:9.5px; line-height:1.45; color:var(--ink-3)}
+  .pat .lbl b{display:block; color:var(--ink); font-size:11px; font-weight:600; font-family:"IBM Plex Sans KR",sans-serif; letter-spacing:-.01em; margin-bottom:1px}
+  .pat .dots{flex:1; display:flex; align-items:center; justify-content:space-around}
+  .pat .dot{width:9px; height:9px; border-radius:50%; background:rgba(242,245,247,.28)}
+  .pat .dot.g{background:#76B900}
+
   /* ---------- callout ---------- */
   .call{
     border-left:3px solid var(--redline); background:var(--redline-soft);
@@ -179,10 +205,11 @@
 <header class="mast">
   <div class="eyebrow"><span>제작 명세서</span><span>Instagram Carousel</span><span>10 slides · 1080×1350</span></div>
   <h1>엔비디아 FY27 2분기 실적<br>인스타그램 캐러셀 10장</h1>
-  <p class="dek">2026년 8월 26일(ET) 발표된 NVIDIA FY2027 2분기 실적을, SEC 8-K 원문과 어닝콜 전문을 근거로 캐러셀 10장에 담기 위한 슬라이드별 제작 명세입니다. 모든 수치는 원문 대조를 마쳤습니다.</p>
+  <p class="dek">2026년 8월 26일(ET) 발표된 NVIDIA FY2027 2분기 실적을, SEC 8-K 원문과 어닝콜 전문을 근거로 캐러셀 10장에 담기 위한 슬라이드별 제작 명세입니다. <b>문서가 아니라 시각 콘텐츠</b>로 제작하며, PPT·웹·인포그래픽 문법을 모두 동원합니다. 모든 수치는 원문 대조를 마쳤습니다.</p>
   <div class="meta-row">
     <span class="tag">작성 2026-08-27</span>
     <span class="tag">구성 확정 · 표지 1 + 본문 8 + 마무리 1</span>
+    <span class="tag on">시각 우선 · 10장 전부 다른 레이아웃</span>
     <span class="tag on">데이터 검증 완료</span>
     <span class="tag on">Q4 FY26 결측 해소</span>
   </div>
@@ -207,9 +234,175 @@
   <p>S5(플랫폼 논리)와 S6(제품)을 <b>한 장으로 통합</b>하고, 확보된 자리에 <b>주주환원·재무상태를 독립 슬라이드(S8)</b>로 배치했습니다. 최종 10장 순서는 어닝콜 발표 순서를 그대로 따릅니다.</p>
 </section>
 
+<!-- ============ 2. 시각 원칙 ============ -->
+<section>
+  <div class="sec-head"><span class="sec-num">02</span><h2>시각 원칙</h2></div>
+
+  <div class="call">
+    <div class="call-t">최우선 제작 원칙</div>
+    <p><b>이 결과물은 문서가 아니라 시각 콘텐츠입니다.</b> 인스타그램에서 문단을 읽는 사람은 없습니다. 각 장은 <b>읽는 것이 아니라 보는 것</b>이어야 하며, 텍스트로 설명하려는 순간 스와이프가 멈춥니다.</p>
+    <p>따라서 PPT·키노트의 슬라이드 문법, 웹·랜딩페이지의 섹션 문법, 데이터 저널리즘의 인포그래픽 문법을 <b>모두 동원해</b> 제작합니다. 아래 네 가지 규칙이 10장 전체에 예외 없이 적용됩니다.</p>
+  </div>
+
+  <div class="tbl-scroll">
+    <table>
+      <thead><tr><th>규칙</th><th>기준</th></tr></thead>
+      <tbody>
+        <tr><td><b>비주얼이 주인공</b></td><td>차트·다이어그램·이미지가 <b>화면 면적의 55~65%</b>를 점유. 텍스트는 헤드라인과 짧은 캡션 수준으로만 존재</td></tr>
+        <tr><td><b>한 장에 하나의 시각 장치</b></td><td>주 비주얼 1개 + 보조 요소(배지·칩·스트립). <b>차트 2개를 한 장에 넣지 않음</b></td></tr>
+        <tr><td><b>숫자는 타이포그래피로</b></td><td>핵심 수치는 본문에 묻지 않고 <b>디스플레이 크기</b>로 독립 배치. 숫자 자체가 그래픽 요소</td></tr>
+        <tr><td><b>10장 모두 다른 레이아웃</b></td><td>같은 틀이 반복되면 스와이프가 끊김. 아래 아키타입 매트릭스대로 <b>10장 전부 다른 구조</b></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>동원할 디자인 문법 3계열</h3>
+  <div class="tbl-scroll">
+    <table>
+      <thead><tr><th>계열</th><th>차용할 요소</th></tr></thead>
+      <tbody>
+        <tr><td><b>PPT · 키노트</b></td><td>풀블리드 히어로 · 빅 넘버 임팩트 슬라이드 · 좌우 분할 대비 · 스텝/프로세스 · 정리 카드 그리드</td></tr>
+        <tr><td><b>웹 · 랜딩페이지</b></td><td>히어로 섹션 · KPI 스트립 · 카드 그리드 · 배지와 칩 · 글래스 패널 · 그라디언트 메시 · 프로그레스 바</td></tr>
+        <tr><td><b>데이터 저널리즘</b></td><td>콤보 차트 · 스택 바 · 슬로프 차트 · 갭 차트 · 노드-엣지 다이어그램 · 게이지 · 전망 밴드</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>레이아웃 아키타입 매트릭스</h3>
+  <p>10장에 배정된 구조입니다. <b>중복이 하나도 없습니다.</b></p>
+
+  <div class="pat-grid">
+    <div class="pat">
+      <div class="cv">
+        <div class="u grow" style="background:rgba(118,185,0,.16);border:1px dashed rgba(118,185,0,.45)"></div>
+        <div class="u" style="height:13px"></div>
+        <div class="u dim" style="height:5px;width:70%"></div>
+      </div>
+      <div class="lbl"><b>풀블리드 히어로</b>S1 · 표지</div>
+    </div>
+    <div class="pat">
+      <div class="cv">
+        <div class="u" style="height:11px"></div>
+        <div class="row"><div class="u grow" style="height:17px"></div><div class="u grow" style="height:17px"></div></div>
+        <div class="row"><div class="u grow" style="height:17px"></div><div class="u grow" style="height:17px"></div></div>
+        <div class="row f" style="align-items:flex-end;gap:3px">
+          <div class="u g" style="flex:1;height:26%"></div><div class="u g" style="flex:1;height:40%"></div>
+          <div class="u g" style="flex:1;height:56%"></div><div class="u g" style="flex:1;height:74%"></div>
+          <div class="u g" style="flex:1;height:95%"></div>
+        </div>
+      </div>
+      <div class="lbl"><b>대시보드 헤더</b>S2 · 총괄 실적</div>
+    </div>
+    <div class="pat">
+      <div class="cv">
+        <div class="u dim" style="height:6px;width:50%"></div>
+        <div class="u g grow" style="opacity:.85"></div>
+        <div class="row"><div class="u" style="flex:1;height:12px"></div><div class="u" style="flex:1.6;height:12px"></div></div>
+      </div>
+      <div class="lbl"><b>빅 넘버 임팩트</b>S3 · 하이퍼스케일</div>
+    </div>
+    <div class="pat">
+      <div class="cv">
+        <div class="u" style="height:11px"></div>
+        <div class="row" style="gap:2px"><div class="u dim" style="flex:55;height:30px"></div><div class="u g" style="flex:45;height:30px"></div></div>
+        <div class="u dim" style="height:9px;width:80%"></div>
+        <div class="row f" style="align-items:flex-end"><div class="u" style="flex:1;height:34%"></div><div class="u g" style="flex:1;height:92%"></div></div>
+      </div>
+      <div class="lbl"><b>분할 비교</b>S4 · ACIE</div>
+    </div>
+    <div class="pat">
+      <div class="cv">
+        <div class="u" style="height:11px"></div>
+        <div class="row f" style="align-items:flex-end;gap:3px">
+          <div class="u dim" style="flex:1;height:30%"></div><div class="u" style="flex:1;height:48%"></div>
+          <div class="u g" style="flex:1;height:80%"></div><div class="u dim" style="flex:1;height:100%"></div>
+        </div>
+        <div class="row" style="gap:3px"><div class="u" style="flex:1;height:9px"></div><div class="u" style="flex:1;height:9px"></div><div class="u" style="flex:1;height:9px"></div><div class="u" style="flex:1;height:9px"></div></div>
+      </div>
+      <div class="lbl"><b>스텝 · 프로세스</b>S5 · 플랫폼·제품</div>
+    </div>
+    <div class="pat">
+      <div class="cv">
+        <div class="u" style="height:11px"></div>
+        <div class="dots"><span class="dot g"></span><span class="dot"></span></div>
+        <div class="u a" style="height:2px;opacity:.7"></div>
+        <div class="dots"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
+        <div class="u dim" style="height:7px;width:65%"></div>
+      </div>
+      <div class="lbl"><b>시스템 다이어그램</b>S6 · 프론티어 랩</div>
+    </div>
+    <div class="pat">
+      <div class="cv">
+        <div class="u" style="height:11px"></div>
+        <div class="grow" style="position:relative">
+          <div style="position:absolute;inset:auto 0 30% 0;height:26%;background:rgba(245,166,35,.2);border-radius:2px"></div>
+          <div style="position:absolute;left:0;right:52%;top:18%;height:2.5px;background:#76B900;border-radius:2px"></div>
+          <div style="position:absolute;left:48%;right:0;top:34%;height:2.5px;background:#F5A623;border-radius:2px;transform:rotate(9deg)"></div>
+        </div>
+        <div class="u dim" style="height:6px;width:55%"></div>
+      </div>
+      <div class="lbl"><b>데이터 저널리즘</b>S7 · 마진 리셋</div>
+    </div>
+    <div class="pat">
+      <div class="cv">
+        <div class="u" style="height:11px"></div>
+        <div class="row f" style="gap:5px">
+          <div class="col"><div class="u g grow" style="opacity:.75"></div><div class="u dim" style="height:8px"></div></div>
+          <div class="col"><div class="u a grow" style="opacity:.55"></div><div class="u dim" style="height:8px"></div></div>
+        </div>
+      </div>
+      <div class="lbl"><b>좌우 대비 패널</b>S8 · 주주환원·재무</div>
+    </div>
+    <div class="pat">
+      <div class="cv">
+        <div class="u" style="height:11px"></div>
+        <div class="row f" style="align-items:flex-end;gap:14px;padding:0 8px">
+          <div class="col" style="flex:1;justify-content:flex-end"><div class="u" style="height:78px;border:1px solid rgba(118,185,0,.6);background:rgba(118,185,0,.18)"></div></div>
+          <div class="col" style="flex:1;justify-content:flex-end"><div class="u a" style="height:22px;opacity:.4"></div><div class="u g" style="height:52px"></div></div>
+        </div>
+      </div>
+      <div class="lbl"><b>대조 갭</b>S9 · 가이던스</div>
+    </div>
+    <div class="pat">
+      <div class="cv">
+        <div class="u" style="height:11px"></div>
+        <div class="row f" style="gap:4px">
+          <div class="col"><div class="u g" style="flex:1;opacity:.5"></div><div class="u g" style="flex:1;opacity:.5"></div><div class="u g" style="flex:1;opacity:.5"></div><div class="u g" style="flex:1;opacity:.5"></div></div>
+          <div class="col"><div class="u a" style="flex:1;opacity:.45"></div><div class="u a" style="flex:1;opacity:.45"></div><div class="u a" style="flex:1;opacity:.45"></div><div class="u a" style="flex:1;opacity:.45"></div></div>
+        </div>
+        <div class="u dim" style="height:5px;width:60%"></div>
+      </div>
+      <div class="lbl"><b>밸런스 카드</b>S10 · 마무리</div>
+    </div>
+  </div>
+
+  <div class="tbl-scroll">
+    <table>
+      <thead><tr><th>장</th><th>레이아웃 아키타입</th><th>주 시각 장치</th><th>문법 계열</th></tr></thead>
+      <tbody>
+        <tr><td>S1</td><td><b>풀블리드 히어로</b></td><td>실사 배경 + 오버레이 타이포</td><td>웹 랜딩</td></tr>
+        <tr><td>S2</td><td><b>대시보드 헤더</b></td><td>KPI 스트립 + 콤보 차트</td><td>웹 대시보드</td></tr>
+        <tr><td>S3</td><td><b>빅 넘버 임팩트</b></td><td>초대형 수치 + 보조 막대</td><td>PPT</td></tr>
+        <tr><td>S4</td><td><b>분할 비교</b></td><td>스택 바 + 게이지 + 로고 스트립</td><td>인포그래픽</td></tr>
+        <tr><td>S5</td><td><b>스텝 · 프로세스</b></td><td>계단 차트 + 아이콘 칩 그리드</td><td>PPT</td></tr>
+        <tr><td>S6</td><td><b>시스템 다이어그램</b></td><td>노드-엣지 자금 흐름도</td><td>인포그래픽</td></tr>
+        <tr><td>S7</td><td><b>데이터 저널리즘</b></td><td>라인 + 전망 밴드</td><td>데이터 저널리즘</td></tr>
+        <tr><td>S8</td><td><b>좌우 대비 패널</b></td><td>슬로프 차트 + 글래스 카드</td><td>웹 + PPT</td></tr>
+        <tr><td>S9</td><td><b>대조 갭</b></td><td>빗금 갭 차트</td><td>인포그래픽</td></tr>
+        <tr><td>S10</td><td><b>밸런스 카드</b></td><td>2열 8카드 그리드</td><td>PPT 정리</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="call note">
+    <div class="call-t">텍스트 예산</div>
+    <p>장당 한글 <b>60~90자</b>가 상한입니다. 이 예산을 넘으면 그 장은 실패한 것으로 보고, 문장을 다듬는 대신 <b>시각 장치로 옮겨 표현</b>합니다. 설명이 필요한 내용은 캡션에 넣지 말고 캐러셀 본문 캡션으로 내립니다.</p>
+  </div>
+</section>
+
 <!-- ============ 2. 공통 사양 ============ -->
 <section>
-  <div class="sec-head"><span class="sec-num">02</span><h2>공통 사양</h2></div>
+  <div class="sec-head"><span class="sec-num">03</span><h2>공통 사양</h2></div>
 
   <div class="tbl-scroll">
     <table>
@@ -240,7 +433,7 @@
 
 <!-- ============ 3. 데이터 대장 ============ -->
 <section>
-  <div class="sec-head"><span class="sec-num">03</span><h2>데이터 대장</h2></div>
+  <div class="sec-head"><span class="sec-num">04</span><h2>데이터 대장</h2></div>
   <p>캐러셀에 등장하는 모든 수치의 원장입니다. 제작 중 수치가 필요하면 반드시 이 표를 참조하고, 표에 없는 숫자는 쓰지 않습니다.</p>
 
   <h3>분기 매출 시계열 <span class="mono" style="font-size:12px;color:var(--ink-3)">— S2 차트 데이터</span></h3>
@@ -301,7 +494,7 @@
 
 <!-- ============ 4. 슬라이드 명세 ============ -->
 <section>
-  <div class="sec-head"><span class="sec-num">04</span><h2>슬라이드별 명세</h2></div>
+  <div class="sec-head"><span class="sec-num">05</span><h2>슬라이드별 명세</h2></div>
   <p>각 슬라이드는 아트보드 배치(좌)와 제작 스펙(우)으로 구성됩니다. 아트보드는 블록 위치를 나타내는 와이어프레임이며 최종 디자인이 아닙니다.</p>
 
   <!-- S1 -->
@@ -318,7 +511,7 @@
       <div class="board-cap">표지</div>
     </div>
     <div>
-      <div class="slide-role">표지 · 스크롤 정지</div>
+      <div class="slide-role">표지 · 스크롤 정지<span class="arch">풀블리드 히어로</span></div>
       <h3>이제, 컴퓨트가 곧 매출이다</h3>
       <dl class="spec">
         <dt>목표</dt><dd>3초 안에 스와이프 유발. 실적 요약이 아니라 <b>긴장</b>을 건다</dd>
@@ -345,7 +538,7 @@
       <div class="board-cap">총괄 실적</div>
     </div>
     <div>
-      <div class="slide-role">본문 01 · 총괄 실적</div>
+      <div class="slide-role">본문 01 · 총괄 실적<span class="arch">대시보드 헤더</span></div>
       <h3>4개 분기 연속, 성장이 빨라졌다</h3>
       <dl class="spec">
         <dt>주 비주얼</dt><dd><b>매출 막대 + 전년비 성장률 라인 결합 차트</b> (5분기 + 가이던스 1). 라인이 우상향 가속하는 형태가 헤드라인의 근거 — 아래 실제 렌더 참조</dd>
@@ -419,7 +612,7 @@
       <div class="board-cap">하이퍼스케일</div>
     </div>
     <div>
-      <div class="slide-role">본문 02 · 데이터센터 ①</div>
+      <div class="slide-role">본문 02 · 데이터센터 ①<span class="arch">빅 넘버 임팩트</span></div>
       <h3>AWS가 GPU를 200만 개 더 산다</h3>
       <dl class="spec">
         <dt>주 비주얼</dt><dd>초대형 숫자 타이포 <code>2,000,000</code> + 캡션 <i>이번 분기 ~ FY2029 2분기 배치 · Vera CPU 동반</i></dd>
@@ -445,7 +638,7 @@
       <div class="board-cap">ACIE</div>
     </div>
     <div>
-      <div class="slide-role">본문 03 · 데이터센터 ②</div>
+      <div class="slide-role">본문 03 · 데이터센터 ②<span class="arch">분할 비교</span></div>
       <h3>모두가 보지 못하는 나머지 절반</h3>
       <dl class="spec">
         <dt>주 비주얼</dt><dd><b>분할 스택 바 1개</b> — 데이터센터 $89B를 하이퍼스케일 $49B / ACIE $40B로 양분. 성장률 배지 <code>QoQ +13%</code> vs <code>QoQ +25% · YoY +138%</code> — ACIE 쪽을 그린 강조</dd>
@@ -470,7 +663,7 @@
       <div class="board-cap">플랫폼 · 제품</div>
     </div>
     <div>
-      <div class="slide-role">본문 04 · 통합 슬라이드</div>
+      <div class="slide-role">본문 04 · 통합 슬라이드<span class="arch">스텝 · 프로세스</span></div>
       <h3>1GW당 매출이 $18B에서 $40B로</h3>
       <dl class="spec">
         <dt>주 비주얼</dt><dd><b>계단 차트</b> — Hopper <code>18</code> / Blackwell <code>25</code> / <b>Vera Rubin <code>40</code></b> ($B per GW). 우측 끝에 점선 화살표 + <i>"그 다음은 더 높다"</i></dd>
@@ -524,7 +717,7 @@
       <div class="board-cap">프론티어 랩</div>
     </div>
     <div>
-      <div class="slide-role">본문 05 · 파이낸싱</div>
+      <div class="slide-role">본문 05 · 파이낸싱<span class="arch">시스템 다이어그램</span></div>
       <h3>"순환출자 아니냐" — 회사가 먼저 꺼냈다</h3>
       <dl class="spec">
         <dt>주 비주얼</dt><dd><b>자금 흐름 다이어그램</b>(차트 아님, 관계도)<br><code>NVIDIA ─투자 $50B→ 프론티어 AI랩</code><br><code>NVIDIA + 6개 캐피털 ─$500B+→ AI 인프라</code><br><code>SB Energy ─부지·전력 4.25GW→ OpenAI</code><br><code>AI랩 ─컴퓨트 구매→ NVIDIA</code> ← <b>앰버 굵은 선</b></dd>
@@ -550,7 +743,7 @@
       <div class="board-cap">수익성</div>
     </div>
     <div>
-      <div class="slide-role">본문 06 · 마진 리셋</div>
+      <div class="slide-role">본문 06 · 마진 리셋<span class="arch">데이터 저널리즘</span></div>
       <h3>75% → 71%, 마진 전망을 리셋했다</h3>
       <dl class="spec">
         <dt>주 비주얼</dt><dd><b>마진 궤적 라인 차트</b> — <code>75.0% → 74.0% → 71~72% → 72~73%</code>. 전망 구간은 음영 밴드, <b>Q4 저점을 앰버 마커</b>로. 저점 바로 위에 라벨 <b>"메모리 가격"</b></dd>
@@ -606,7 +799,7 @@
       <div class="board-cap">주주환원·재무</div>
     </div>
     <div>
-      <div class="slide-role">본문 07 · 신규 독립</div>
+      <div class="slide-role">본문 07 · 신규 독립<span class="arch">좌우 대비 패널</span></div>
       <h3>사상 최대 환원, 그리고 달라진 재무제표</h3>
       <dl class="spec">
         <dt>주 비주얼</dt><dd><b>좌우 2분할 대비 레이아웃</b><br><b>좌(그린)</b> <code>$26.0B 환원</code> · <code>FCF의 60% (YTD)</code> · <code>분기 FCF $21.3B</code> · <code>자사주 한도 $99.0B 잔여</code><br><b>우(앰버) "관찰 포인트"</b> — 슬로프 4줄: 재고 <code>$21.4B→$31.6B</code> · 매출채권 <code>$38.5B→$63.1B</code> · 장기부채 <code>$7.5B→$32.4B</code> · 비상장증권 <code>$22.3B→$51.2B</code> + 배지 <code>DSO 60일</code></dd>
@@ -630,7 +823,7 @@
       <div class="board-cap">가이던스</div>
     </div>
     <div>
-      <div class="slide-role">본문 08 · 가이던스</div>
+      <div class="slide-role">본문 08 · 가이던스<span class="arch">대조 갭</span></div>
       <h3>사상 처음으로, 1년 앞을 말했다</h3>
       <dl class="spec">
         <dt>주 비주얼</dt><dd><b>수요 vs 공급 갭 차트</b> — 나란한 두 막대 <code>수요 ≈ 100%</code> / <code>공급 가능 70%</code>, 그 사이를 <b>빗금 갭</b>으로. 갭 라벨 <i>"팔 수 있었지만 못 파는 구간"</i></dd>
@@ -682,7 +875,7 @@
       <div class="board-cap">마무리</div>
     </div>
     <div>
-      <div class="slide-role">마무리 · 중립</div>
+      <div class="slide-role">마무리 · 중립<span class="arch">밸런스 카드</span></div>
       <h3>논점은 수요에서, 공급과 마진으로 옮겨갔다</h3>
       <dl class="spec">
         <dt>주 비주얼</dt><dd><b>좌우 대칭 4:4 카드</b> (저울 모티프)</dd>
@@ -698,7 +891,7 @@
 
 <!-- ============ 5. 이미지 방침 ============ -->
 <section>
-  <div class="sec-head"><span class="sec-num">05</span><h2>이미지·로고 방침</h2></div>
+  <div class="sec-head"><span class="sec-num">06</span><h2>이미지·로고 방침</h2></div>
 
   <div class="tbl-scroll">
     <table>
@@ -716,7 +909,7 @@
 
 <!-- ============ 6. 파이프라인 ============ -->
 <section>
-  <div class="sec-head"><span class="sec-num">06</span><h2>제작 파이프라인</h2></div>
+  <div class="sec-head"><span class="sec-num">07</span><h2>제작 파이프라인</h2></div>
   <ol>
     <li><b>배경 이미지 생성</b> — S1·S3·S5용 비인물 실사 3~4컷. 다크 톤, 저채도</li>
     <li><b>슬라이드 HTML 작성</b> — 10장을 각각 1080×1350 문서로. 차트는 인라인 SVG로 직접 작성해 수치를 정확히 통제</li>
@@ -741,7 +934,7 @@
 
 <!-- ============ 7. 캡션 ============ -->
 <section>
-  <div class="sec-head"><span class="sec-num">07</span><h2>캡션 초안</h2></div>
+  <div class="sec-head"><span class="sec-num">08</span><h2>캡션 초안</h2></div>
   <div class="call">
     <div class="call-t">본문 캡션</div>
     <p>엔비디아가 2분기 매출 <b>962억 달러</b>를 발표했습니다. 전년 대비 106% 성장, 4개 분기 연속 성장 가속입니다.</p>
